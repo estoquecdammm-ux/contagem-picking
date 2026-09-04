@@ -374,7 +374,6 @@
 
 <div id="toast-wrap"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
@@ -930,30 +929,9 @@ function renderMovimentacoes(){
   tb.querySelectorAll('[data-detalhe]').forEach(b=>b.addEventListener('click', ()=>abrirDetalheMov(b.dataset.detalhe)));
 }
 
-document.getElementById('btn-exportar-word').addEventListener('click', async ()=>{
+document.getElementById('btn-exportar-word').addEventListener('click', ()=>{
   const filtrados = getFiltrados();
   if(filtrados.length === 0){ toast('Nenhuma movimentação para exportar com esses filtros.', true); return; }
-
-  const { Document, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, Packer, AlignmentType } = window.docx;
-
-  const headerCells = ['Data/Hora','Colaborador','Rua','Endereço','Tipo','Observação','Código Produto'].map(t=>
-    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: t, bold: true })] })] })
-  );
-
-  const rows = [ new TableRow({ children: headerCells }) ];
-  filtrados.forEach(r=>{
-    rows.push(new TableRow({ children: [
-      new TableCell({ children: [new Paragraph(formatTimestamp(r.timestamp))] }),
-      new TableCell({ children: [new Paragraph(colaboradorNome(r.colaboradorId))] }),
-      new TableCell({ children: [new Paragraph(ruaCodigo(r.ruaId))] }),
-      new TableCell({ children: [new Paragraph(r.enderecoCodigo || '—')] }),
-      new TableCell({ children: [new Paragraph(r.tipo)] }),
-      new TableCell({ children: [new Paragraph(r.observacao || '—')] }),
-      new TableCell({ children: [new Paragraph(r.codigoProduto || '—')] }),
-    ]}));
-  });
-
-  const table = new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows });
 
   const agora = new Date().toLocaleString('pt-BR');
   const filtrosTexto = [];
@@ -966,30 +944,53 @@ document.getElementById('btn-exportar-word').addEventListener('click', async ()=
   if(fTipoVal) filtrosTexto.push(`Tipo: ${fTipoVal}`);
   if(fDataVal) filtrosTexto.push(`Data: ${fDataVal}`);
 
-  const doc = new Document({
-    sections: [{
-      children: [
-        new Paragraph({ text: 'Relatório de Movimentações — SwiftCount', heading: HeadingLevel.HEADING_1 }),
-        new Paragraph({ text: `Gerado em ${agora}`, spacing: { after: 100 } }),
-        new Paragraph({ text: filtrosTexto.length ? `Filtros aplicados: ${filtrosTexto.join(' · ')}` : 'Sem filtros aplicados (todas as movimentações)', spacing: { after: 200 } }),
-        new Paragraph({ text: `Total de registros: ${filtrados.length}`, spacing: { after: 200 } }),
-        table
-      ]
-    }]
-  });
+  const linhas = filtrados.map(r => `
+    <tr>
+      <td>${formatTimestamp(r.timestamp)}</td>
+      <td>${colaboradorNome(r.colaboradorId)}</td>
+      <td>${ruaCodigo(r.ruaId)}</td>
+      <td>${r.enderecoCodigo || '—'}</td>
+      <td>${r.tipo}</td>
+      <td>${r.observacao || '—'}</td>
+      <td>${r.codigoProduto || '—'}</td>
+    </tr>`).join('');
 
-  try{
-    const blob = await Packer.toBlob(doc);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `SwiftCount_Movimentacoes_${todayStrSimples()}.docx`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast('Arquivo Word gerado.');
-  }catch(err){
-    toast('Erro ao gerar Word: ' + err.message, true);
-  }
+  const html = `
+    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+    <head>
+      <meta charset="utf-8">
+      <title>Relatório de Movimentações</title>
+      <style>
+        body{font-family:Calibri,Arial,sans-serif;font-size:11pt;}
+        h1{font-size:18pt;color:#1B2233;}
+        p{color:#444;font-size:10pt;}
+        table{border-collapse:collapse;width:100%;margin-top:12px;}
+        th,td{border:1px solid #999;padding:6px 8px;font-size:9.5pt;text-align:left;}
+        th{background:#E0303F;color:#fff;}
+      </style>
+    </head>
+    <body>
+      <h1>Relatório de Movimentações — SwiftCount</h1>
+      <p>Gerado em ${agora}</p>
+      <p>${filtrosTexto.length ? 'Filtros aplicados: ' + filtrosTexto.join(' · ') : 'Sem filtros aplicados (todas as movimentações)'}</p>
+      <p>Total de registros: ${filtrados.length}</p>
+      <table>
+        <tr>
+          <th>Data/Hora</th><th>Colaborador</th><th>Rua</th><th>Endereço</th><th>Tipo</th><th>Observação</th><th>Código Produto</th>
+        </tr>
+        ${linhas}
+      </table>
+    </body>
+    </html>`;
+
+  const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `SwiftCount_Movimentacoes_${todayStrSimples()}.doc`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Arquivo Word gerado.');
 });
 
 function todayStrSimples(){
