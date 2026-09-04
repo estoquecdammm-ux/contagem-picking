@@ -228,6 +228,7 @@
           <option value="OUTROS">Outros</option>
         </select>
         <input type="date" id="filtro-data" style="max-width:160px;">
+        <button class="btn btn-new" id="btn-exportar-word" style="width:auto;">📄 Exportar para Word</button>
       </div>
       <table>
         <thead><tr><th>Data/Hora</th><th>Colaborador</th><th>Rua</th><th>Endereço</th><th>Tipo</th><th></th></tr></thead>
@@ -367,6 +368,7 @@
 
 <div id="toast-wrap"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
@@ -884,21 +886,25 @@ function formatTimestamp(ts){
   return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
 }
 
-function renderMovimentacoes(){
-  const tb = document.getElementById('tbody-movimentacoes');
-  if(!tb) return;
+function getFiltrados(){
   const fColab = document.getElementById('filtro-colaborador').value;
   const fRua = document.getElementById('filtro-rua').value;
   const fTipo = document.getElementById('filtro-tipo').value;
   const fData = document.getElementById('filtro-data').value;
 
-  let filtrados = registros.filter(r=>{
+  return registros.filter(r=>{
     if(fColab && r.colaboradorId !== fColab) return false;
     if(fRua && r.ruaId !== fRua) return false;
     if(fTipo && r.tipo !== fTipo) return false;
     if(fData && r.data !== fData) return false;
     return true;
   });
+}
+
+function renderMovimentacoes(){
+  const tb = document.getElementById('tbody-movimentacoes');
+  if(!tb) return;
+  const filtrados = getFiltrados();
 
   if(filtrados.length === 0){
     tb.innerHTML = `<tr><td colspan="6"><div class="empty-state">Nenhuma movimentação encontrada.</div></td></tr>`;
@@ -916,6 +922,73 @@ function renderMovimentacoes(){
     </tr>`).join('');
 
   tb.querySelectorAll('[data-detalhe]').forEach(b=>b.addEventListener('click', ()=>abrirDetalheMov(b.dataset.detalhe)));
+}
+
+document.getElementById('btn-exportar-word').addEventListener('click', async ()=>{
+  const filtrados = getFiltrados();
+  if(filtrados.length === 0){ toast('Nenhuma movimentação para exportar com esses filtros.', true); return; }
+
+  const { Document, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, Packer, AlignmentType } = window.docx;
+
+  const headerCells = ['Data/Hora','Colaborador','Rua','Endereço','Tipo','Observação','Código Produto'].map(t=>
+    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: t, bold: true })] })] })
+  );
+
+  const rows = [ new TableRow({ children: headerCells }) ];
+  filtrados.forEach(r=>{
+    rows.push(new TableRow({ children: [
+      new TableCell({ children: [new Paragraph(formatTimestamp(r.timestamp))] }),
+      new TableCell({ children: [new Paragraph(colaboradorNome(r.colaboradorId))] }),
+      new TableCell({ children: [new Paragraph(ruaCodigo(r.ruaId))] }),
+      new TableCell({ children: [new Paragraph(r.enderecoCodigo || '—')] }),
+      new TableCell({ children: [new Paragraph(r.tipo)] }),
+      new TableCell({ children: [new Paragraph(r.observacao || '—')] }),
+      new TableCell({ children: [new Paragraph(r.codigoProduto || '—')] }),
+    ]}));
+  });
+
+  const table = new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows });
+
+  const agora = new Date().toLocaleString('pt-BR');
+  const filtrosTexto = [];
+  const fColabVal = document.getElementById('filtro-colaborador').selectedOptions[0]?.text;
+  const fRuaVal = document.getElementById('filtro-rua').selectedOptions[0]?.text;
+  const fTipoVal = document.getElementById('filtro-tipo').value;
+  const fDataVal = document.getElementById('filtro-data').value;
+  if(document.getElementById('filtro-colaborador').value) filtrosTexto.push(`Colaborador: ${fColabVal}`);
+  if(document.getElementById('filtro-rua').value) filtrosTexto.push(`Rua: ${fRuaVal}`);
+  if(fTipoVal) filtrosTexto.push(`Tipo: ${fTipoVal}`);
+  if(fDataVal) filtrosTexto.push(`Data: ${fDataVal}`);
+
+  const doc = new Document({
+    sections: [{
+      children: [
+        new Paragraph({ text: 'Relatório de Movimentações — SwiftCount', heading: HeadingLevel.HEADING_1 }),
+        new Paragraph({ text: `Gerado em ${agora}`, spacing: { after: 100 } }),
+        new Paragraph({ text: filtrosTexto.length ? `Filtros aplicados: ${filtrosTexto.join(' · ')}` : 'Sem filtros aplicados (todas as movimentações)', spacing: { after: 200 } }),
+        new Paragraph({ text: `Total de registros: ${filtrados.length}`, spacing: { after: 200 } }),
+        table
+      ]
+    }]
+  });
+
+  try{
+    const blob = await Packer.toBlob(doc);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `SwiftCount_Movimentacoes_${todayStrSimples()}.docx`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('Arquivo Word gerado.');
+  }catch(err){
+    toast('Erro ao gerar Word: ' + err.message, true);
+  }
+});
+
+function todayStrSimples(){
+  const d = new Date();
+  return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
 }
 
 function abrirDetalheMov(id){
