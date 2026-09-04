@@ -154,6 +154,7 @@
 
     <button class="btn btn-secondary" id="btn-buscar-endereco" style="margin-top:10px;">🔍 Ir para outro endereço</button>
     <button class="voltar-link" id="btn-voltar-endereco">‹ Revisar endereços já contados</button>
+    <button class="voltar-link" id="btn-ver-resumo-livre">Ver resumo desta rua</button>
   </div>
 
   <!-- REVISÃO -->
@@ -373,7 +374,7 @@ async function carregarMinhaContagem(){
       <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
       <div class="progress-label">ENDEREÇOS: ${totalRegistros}/${totalEnderecos}</div>
       <button class="btn ${concluida ? 'btn-secondary' : 'btn-primary'}" data-rua="${r.ruaId}">
-        ${concluida ? 'Ver resumo' : (totalRegistros>0 ? 'CONTINUAR CONTAGEM' : 'INICIAR CONTAGEM')}
+        ${concluida ? 'Revisar / corrigir contagem' : (totalRegistros>0 ? 'CONTINUAR CONTAGEM' : 'INICIAR CONTAGEM')}
       </button>
     `;
     card.querySelector('button').addEventListener('click', ()=> iniciarContagem(r, sid, concluida));
@@ -424,11 +425,10 @@ async function iniciarContagem(rua, sid, jaConcluida){
 
   currentIndex = enderecosDaRua.findIndex(e => !registrosDaSessao[e.id]);
   if(currentIndex === -1){
-    mostrarConcluido();
-  } else {
-    renderEndereco();
-    showScreen('screen-contagem');
+    currentIndex = enderecosDaRua.length > 0 ? enderecosDaRua.length - 1 : 0;
   }
+  renderEndereco();
+  showScreen('screen-contagem');
 }
 
 function renderEndereco(){
@@ -593,6 +593,7 @@ function abrirRevisao(origem){
 document.getElementById('btn-voltar-endereco').addEventListener('click', ()=> abrirRevisao('contagem'));
 document.getElementById('btn-revisar-concluido').addEventListener('click', ()=> abrirRevisao('concluido'));
 document.getElementById('btn-fechar-revisao').addEventListener('click', ()=> showScreen(revisaoOrigem === 'concluido' ? 'screen-concluido' : 'screen-contagem'));
+document.getElementById('btn-ver-resumo-livre').addEventListener('click', ()=> mostrarConcluido());
 
 // ---------------- Busca livre de endereço (sem cadeia fixa) ----------------
 document.getElementById('btn-buscar-endereco').addEventListener('click', ()=>{
@@ -632,7 +633,14 @@ function renderBuscaList(filtro){
 
 // ---------------- 7. Concluído ----------------
 async function mostrarConcluido(){
-  await setDoc(doc(db,'sessoes', sessaoAtualId), { status: 'concluida', concluidoEm: Timestamp.fromDate(nowSaoPaulo()) }, { merge: true });
+  const totalContados = Object.keys(registrosDaSessao).length;
+  const todosContados = totalContados >= enderecosDaRua.length;
+  if(todosContados){
+    await setDoc(doc(db,'sessoes', sessaoAtualId), { status: 'concluida', concluidoEm: Timestamp.fromDate(nowSaoPaulo()) }, { merge: true });
+  }
+
+  document.querySelector('#screen-concluido h2').textContent = todosContados ? 'Contagem concluída' : 'Resumo parcial';
+  document.querySelector('#screen-concluido .icon-num').textContent = todosContados ? '🎉' : '📊';
 
   const contagens = { ACERTO:0, FALTA:0, SOBRA:0, OUTROS:0 };
   Object.values(registrosDaSessao).forEach(r=>{
