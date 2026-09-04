@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>SwiftCount — Contagem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0F1626; --panel:#1A2438; --panel-2:#212D46; --border:#2B3752;
+    --text:#E9EEF7; --muted:#8C99B8; --accent:#F5A623; --accent-dark:#C97F0F;
+    --success:#2FBF71; --danger:#EF5D5D; --warn:#F5C542;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  h1,h2,h3,.brand{font-family:'Space Grotesk',sans-serif;}
+  button{font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+  input, textarea{font-family:inherit;background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:14px;font-size:16px;width:100%;}
+  input:focus, textarea:focus{outline:none;border-color:var(--accent);}
+  .app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;padding:0 0 24px;}
+  .topbar{padding:18px 20px 10px;display:flex;align-items:center;gap:8px;}
+  .topbar .dot{width:9px;height:9px;background:var(--accent);border-radius:3px;transform:rotate(45deg);}
+  .topbar .brand{font-size:16px;font-weight:700;}
+  .screen{flex:1;padding:16px 20px 20px;display:none;flex-direction:column;}
+  .screen.visible{display:flex;}
+  .center{align-items:center;justify-content:center;text-align:center;gap:14px;}
+
+  .btn{border:none;border-radius:12px;padding:16px 18px;font-weight:700;font-size:16px;width:100%;transition:filter .15s, transform .08s;}
+  .btn:active{transform:scale(.98);}
+  .btn-primary{background:var(--accent);color:#1a1200;}
+  .btn-secondary{background:var(--panel-2);color:var(--text);border:1px solid var(--border);}
+  .btn-success{background:var(--success);color:#052112;}
+  .btn-lg{padding:22px;font-size:18px;}
+  .btn:disabled{opacity:.45;}
+
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:18px;}
+  .hint{color:var(--muted);font-size:13px;line-height:1.5;}
+  .field{margin-bottom:16px;}
+  label{font-size:12.5px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px;}
+
+  /* Minha Contagem */
+  .greeting{font-size:20px;font-weight:700;margin:4px 0 2px;}
+  .subgreeting{color:var(--muted);font-size:13.5px;margin-bottom:20px;}
+  .rua-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px;}
+  .rua-card .rua-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .rua-card .rua-codigo{font-size:17px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+  .rua-card .rua-grupo{color:var(--muted);font-size:12.5px;}
+  .progress-bar{height:8px;background:var(--panel-2);border-radius:99px;overflow:hidden;margin-bottom:10px;}
+  .progress-fill{height:100%;background:var(--accent);border-radius:99px;transition:width .3s;}
+  .progress-label{font-size:12.5px;color:var(--muted);margin-bottom:12px;}
+  .status-chip{font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;background:rgba(47,191,113,.15);color:var(--success);}
+  .status-chip.pendente{background:rgba(245,166,35,.15);color:var(--accent);}
+
+  /* Contagem por endereço */
+  .addr-header{text-align:center;margin-bottom:8px;}
+  .addr-progress-label{color:var(--muted);font-size:13px;margin-bottom:6px;}
+  .addr-code{font-size:32px;font-weight:800;font-family:'JetBrains Mono',monospace;margin:4px 0;letter-spacing:-.01em;}
+  .addr-side{display:inline-block;background:var(--panel-2);border:1px solid var(--border);padding:4px 12px;border-radius:99px;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:18px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+  .btn-ocorrencia{background:var(--panel-2);border:1px solid var(--border);color:var(--text);padding:16px 10px;border-radius:12px;font-weight:600;font-size:13.5px;line-height:1.3;}
+  .btn-ocorrencia:active{background:var(--border);}
+  .btn-acerto{background:var(--success);color:#052112;padding:22px;border-radius:14px;font-weight:800;font-size:19px;border:none;width:100%;margin-bottom:14px;}
+  .voltar-link{background:none;border:none;color:var(--muted);font-size:13.5px;font-weight:600;padding:10px;margin-top:6px;}
+
+  /* Modal ocorrência */
+  .modal-overlay{position:fixed;inset:0;background:rgba(6,9,17,.7);display:none;align-items:flex-end;justify-content:center;z-index:100;}
+  .modal-overlay.visible{display:flex;}
+  .modal-sheet{width:100%;max-width:480px;background:var(--panel);border-radius:20px 20px 0 0;padding:22px 20px 26px;max-height:90vh;overflow-y:auto;}
+  .modal-sheet h2{font-size:18px;margin:0 0 4px;}
+  .tipo-chip{display:inline-block;background:rgba(245,166,35,.15);color:var(--accent);font-size:12.5px;font-weight:700;padding:4px 10px;border-radius:99px;margin-bottom:16px;}
+  .photo-preview{width:100%;border-radius:10px;margin-top:8px;display:none;}
+  .photo-btn{background:var(--panel-2);border:1px dashed var(--border);color:var(--muted);padding:14px;border-radius:10px;text-align:center;font-size:13.5px;font-weight:600;}
+
+  /* Resumo / concluído */
+  .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0;}
+  .summary-item{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;}
+  .summary-item .num{font-size:24px;font-weight:800;font-family:'Space Grotesk',sans-serif;}
+  .summary-item .lbl{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;}
+
+  /* Revisão */
+  .review-list{display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow-y:auto;}
+  .review-item{display:flex;justify-content:space-between;align-items:center;background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+  .review-item .code{font-family:'JetBrains Mono',monospace;font-size:14px;}
+  .review-item .tipo{font-size:12px;font-weight:700;color:var(--muted);}
+
+  #toast-wrap{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:300;width:calc(100% - 40px);max-width:440px;display:flex;flex-direction:column;gap:8px;}
+  .toast{background:var(--panel-2);border:1px solid var(--border);border-left:3px solid var(--success);padding:12px 16px;border-radius:10px;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.4);}
+  .toast.error{border-left-color:var(--danger);}
+
+  .icon-num{width:56px;height:56px;border-radius:50%;background:var(--panel-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:6px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar"><span class="dot"></span><span class="brand">SwiftCount</span></div>
+
+  <!-- TOKEN INVÁLIDO -->
+  <div class="screen center" id="screen-invalido">
+    <div class="icon-num">⚠️</div>
+    <h2 style="margin:0">Acesso não encontrado</h2>
+    <p class="hint">Este link não é válido ou foi desativado. Procure o administrador para receber um novo link.</p>
+  </div>
+
+  <!-- MATRÍCULA -->
+  <div class="screen center" id="screen-matricula">
+    <div class="icon-num">🔒</div>
+    <h2 style="margin:0 0 4px">Confirme sua matrícula</h2>
+    <p class="hint" style="margin-bottom:18px">Para continuar, digite sua matrícula de colaborador.</p>
+    <div style="width:100%">
+      <input type="text" id="input-matricula" inputmode="numeric" placeholder="Sua matrícula" style="text-align:center;font-size:22px;font-weight:700;letter-spacing:.05em;">
+      <div class="hint" id="matricula-error" style="color:var(--danger);min-height:18px;margin-top:8px;"></div>
+      <button class="btn btn-primary btn-lg" id="btn-confirmar-matricula" style="margin-top:14px;">Confirmar</button>
+    </div>
+  </div>
+
+  <!-- MINHA CONTAGEM -->
+  <div class="screen" id="screen-minha-contagem">
+    <div class="greeting" id="minha-contagem-nome"></div>
+    <div class="subgreeting">Selecione uma rua para começar a contagem de hoje.</div>
+    <div id="ruas-list"></div>
+    <div class="hint" id="sem-atribuicao" style="display:none;text-align:center;margin-top:30px;">Nenhuma rua atribuída. Procure o administrador.</div>
+    <button class="btn btn-secondary" id="btn-ver-historico" style="margin-top:10px;">Ver minhas contagens anteriores</button>
+  </div>
+
+  <!-- CONTAGEM POR ENDEREÇO -->
+  <div class="screen" id="screen-contagem">
+    <div class="addr-header">
+      <div class="addr-progress-label" id="addr-progress-label"></div>
+      <div class="progress-bar"><div class="progress-fill" id="addr-progress-fill" style="width:0%"></div></div>
+      <div class="addr-code" id="addr-codigo">—</div>
+      <div class="addr-side" id="addr-lado">—</div>
+    </div>
+
+    <button class="btn-acerto" id="btn-acerto">✓ ACERTO</button>
+
+    <div class="grid2">
+      <button class="btn-ocorrencia" data-tipo="FALTA">FALTA</button>
+      <button class="btn-ocorrencia" data-tipo="SOBRA">SOBRA</button>
+      <button class="btn-ocorrencia" data-tipo="SEPARAÇÃO DEIXADA">Separação deixada</button>
+      <button class="btn-ocorrencia" data-tipo="RESSUPRIMENTO INCORRETO">Ressuprimento incorreto</button>
+      <button class="btn-ocorrencia" data-tipo="AVARIA SEM TRATATIVA">Avaria sem tratativa</button>
+      <button class="btn-ocorrencia" data-tipo="OUTROS">Outros</button>
+    </div>
+
+    <button class="voltar-link" id="btn-voltar-endereco">‹ Revisar endereços já contados</button>
+  </div>
+
+  <!-- REVISÃO -->
+  <div class="screen" id="screen-revisao">
+    <h2 style="margin:0 0 14px">Revisar endereços</h2>
+    <div class="review-list" id="review-list"></div>
+    <button class="btn btn-secondary" id="btn-fechar-revisao" style="margin-top:16px;">Voltar para contagem</button>
+  </div>
+
+  <!-- CONCLUÍDO -->
+  <div class="screen center" id="screen-concluido">
+    <div class="icon-num">🎉</div>
+    <h2 style="margin:0">Contagem concluída</h2>
+    <div class="summary-grid" id="summary-grid" style="width:100%"></div>
+    <button class="btn btn-primary btn-lg" id="btn-voltar-minha-contagem">Voltar para Minha Contagem</button>
+  </div>
+
+  <!-- HISTÓRICO -->
+  <div class="screen" id="screen-historico">
+    <h2 style="margin:0 0 4px">Minhas contagens</h2>
+    <p class="hint" style="margin-bottom:16px">Somente leitura — sessões já finalizadas.</p>
+    <div class="review-list" id="historico-list"></div>
+    <button class="btn btn-secondary" id="btn-fechar-historico" style="margin-top:16px;">Voltar</button>
+  </div>
+</div>
+
+<!-- MODAL OCORRÊNCIA -->
+<div class="modal-overlay" id="modal-ocorrencia">
+  <div class="modal-sheet">
+    <span class="tipo-chip" id="modal-tipo-chip">TIPO</span>
+    <h2>Registrar ocorrência</h2>
+    <div class="field" style="margin-top:16px;">
+      <label>Observação (opcional)</label>
+      <textarea id="modal-observacao" rows="2"></textarea>
+    </div>
+    <div class="field">
+      <label>Código do produto (opcional)</label>
+      <input type="text" id="modal-codigo-produto">
+    </div>
+    <div class="field">
+      <label>Foto (opcional)</label>
+      <label class="photo-btn" for="modal-foto-input">📷 Tirar / anexar foto</label>
+      <input type="file" id="modal-foto-input" accept="image/*" capture="environment" style="display:none;">
+      <img id="modal-foto-preview" class="photo-preview">
+    </div>
+    <button class="btn btn-primary btn-lg" id="btn-salvar-ocorrencia" style="margin-top:6px;">Salvar e próximo</button>
+    <button class="btn btn-secondary" id="btn-cancelar-ocorrencia" style="margin-top:10px;">Cancelar</button>
+  </div>
+</div>
+
+<div id="toast-wrap"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where,
+  enableIndexedDbPersistence, onSnapshot, Timestamp
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBsAjEc3Q6Q4J4YknH4SOwopxLHmY7Km2M",
+  authDomain: "contagem-picking.firebaseapp.com",
+  projectId: "contagem-picking",
+  storageBucket: "contagem-picking.firebasestorage.app",
+  messagingSenderId: "839909055659",
+  appId: "1:839909055659:web:966896f073d9f9fec6ebee"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+try{ await enableIndexedDbPersistence(db); }catch(e){ /* multiple tabs open, or unsupported — segue sem offline avançado */ }
+
+function toast(msg, isError=false){
+  const wrap = document.getElementById('toast-wrap');
+  const el = document.createElement('div');
+  el.className = 'toast' + (isError ? ' error' : '');
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(()=> el.remove(), 4000);
+}
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('visible'));
+  document.getElementById(id).classList.add('visible');
+}
+function todayStr(){
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+  const y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0'), d = String(now.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
+function nowSaoPaulo(){
+  return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+}
+const DIAS = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+
+// ---------------- Estado global ----------------
+let colaborador = null;
+let ruasAtribuidas = []; // [{ruaId, ruaCodigo, grupoId, grupoNome}]
+let ruaAtual = null;
+let enderecosDaRua = [];
+let registrosDaSessao = {}; // enderecoId -> registro doc
+let sessaoAtualId = null;
+let currentIndex = 0;
+
+// ---------------- 1. Ler token da URL ----------------
+const params = new URLSearchParams(window.location.search);
+const token = params.get('token');
+
+async function init(){
+  if(!token){ showScreen('screen-invalido'); return; }
+  const q = query(collection(db,'colaboradores'), where('accessToken','==', token));
+  const snap = await getDocs(q);
+  if(snap.empty){ showScreen('screen-invalido'); return; }
+  const docSnap = snap.docs[0];
+  colaborador = { id: docSnap.id, ...docSnap.data() };
+  if(colaborador.ativo === false){ showScreen('screen-invalido'); return; }
+
+  const lembrado = localStorage.getItem('swiftcount_confirmado_' + token);
+  if(lembrado === colaborador.matricula){
+    await carregarMinhaContagem();
+  } else {
+    showScreen('screen-matricula');
+  }
+}
+init();
+
+document.getElementById('btn-confirmar-matricula').addEventListener('click', async ()=>{
+  const val = document.getElementById('input-matricula').value.trim();
+  if(val === String(colaborador.matricula)){
+    localStorage.setItem('swiftcount_confirmado_' + token, colaborador.matricula);
+    await carregarMinhaContagem();
+  } else {
+    document.getElementById('matricula-error').textContent = 'Matrícula não confere. Tente novamente.';
+  }
+});
+
+// ---------------- 2. Minha Contagem ----------------
+async function carregarMinhaContagem(){
+  document.getElementById('minha-contagem-nome').textContent = 'Olá, ' + colaborador.nome.split(' ')[0] + '!';
+
+  const qAtrib = query(collection(db,'atribuicoes'), where('colaboradorId','==', colaborador.id), where('ativo','==', true));
+  const snapAtrib = await getDocs(qAtrib);
+  if(snapAtrib.empty){
+    document.getElementById('sem-atribuicao').style.display = 'block';
+    document.getElementById('ruas-list').innerHTML = '';
+    showScreen('screen-minha-contagem');
+    return;
+  }
+  document.getElementById('sem-atribuicao').style.display = 'none';
+
+  const ruasSnap = await getDocs(collection(db,'ruas'));
+  const gruposSnap = await getDocs(collection(db,'grupos'));
+  const ruasMap = Object.fromEntries(ruasSnap.docs.map(d=>[d.id, d.data()]));
+  const gruposMap = Object.fromEntries(gruposSnap.docs.map(d=>[d.id, d.data()]));
+
+  ruasAtribuidas = snapAtrib.docs
+    .map(d=>d.data())
+    .filter(a => ruasMap[a.ruaId] && ruasMap[a.ruaId].ativo !== false)
+    .map(a => ({
+      ruaId: a.ruaId,
+      ruaCodigo: ruasMap[a.ruaId].codigo,
+      grupoId: a.grupoId,
+      grupoNome: gruposMap[a.grupoId] ? gruposMap[a.grupoId].nome : '—'
+    }));
+
+  const list = document.getElementById('ruas-list');
+  list.innerHTML = '';
+  for(const r of ruasAtribuidas){
+    const sid = sessionId(colaborador.id, r.ruaId, todayStr());
+    const totalEnderecos = (await getDocs(query(collection(db,'enderecos'), where('ruaId','==', r.ruaId), where('ativo','==', true)))).size;
+    const totalRegistros = (await getDocs(query(collection(db,'registros'), where('sessaoId','==', sid)))).size;
+    const sessaoDoc = await getDoc(doc(db,'sessoes', sid));
+    const concluida = sessaoDoc.exists() && sessaoDoc.data().status === 'concluida';
+    const pct = totalEnderecos > 0 ? Math.round((totalRegistros/totalEnderecos)*100) : 0;
+
+    const card = document.createElement('div');
+    card.className = 'rua-card';
+    card.innerHTML = `
+      <div class="rua-top">
+        <div><div class="rua-codigo">${r.ruaCodigo}</div><div class="rua-grupo">${r.grupoNome}</div></div>
+        <span class="status-chip ${concluida ? '' : 'pendente'}">${concluida ? 'Concluída' : (totalRegistros>0 ? 'Em andamento' : 'Não iniciada')}</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div class="progress-label">ENDEREÇOS: ${totalRegistros}/${totalEnderecos}</div>
+      <button class="btn ${concluida ? 'btn-secondary' : 'btn-primary'}" data-rua="${r.ruaId}">
+        ${concluida ? 'Ver resumo' : (totalRegistros>0 ? 'CONTINUAR CONTAGEM' : 'INICIAR CONTAGEM')}
+      </button>
+    `;
+    card.querySelector('button').addEventListener('click', ()=> iniciarContagem(r, sid, concluida));
+    list.appendChild(card);
+  }
+  showScreen('screen-minha-contagem');
+}
+
+function sessionId(colaboradorId, ruaId, dataStr){
+  return `${colaboradorId}__${ruaId}__${dataStr}`;
+}
+
+document.getElementById('btn-ver-historico').addEventListener('click', carregarHistorico);
+document.getElementById('btn-fechar-historico').addEventListener('click', ()=> showScreen('screen-minha-contagem'));
+
+async function carregarHistorico(){
+  const qSessoes = query(collection(db,'sessoes'), where('colaboradorId','==', colaborador.id));
+  const snap = await getDocs(qSessoes);
+  const list = document.getElementById('historico-list');
+  if(snap.empty){
+    list.innerHTML = '<div class="hint">Nenhuma sessão registrada ainda.</div>';
+  } else {
+    const sessoes = snap.docs.map(d=>({id:d.id, ...d.data()})).sort((a,b)=> (b.data||'').localeCompare(a.data||''));
+    list.innerHTML = sessoes.map(s=>{
+      const rua = ruasAtribuidas.find(r=>r.ruaId===s.ruaId);
+      return `<div class="review-item"><span class="code">${rua ? rua.ruaCodigo : s.ruaId} — ${s.data}</span><span class="tipo">${s.status === 'concluida' ? 'Concluída' : 'Em andamento'}</span></div>`;
+    }).join('');
+  }
+  showScreen('screen-historico');
+}
+
+// ---------------- 3. Iniciar contagem de uma rua ----------------
+async function iniciarContagem(rua, sid, jaConcluida){
+  ruaAtual = rua;
+  sessaoAtualId = sid;
+
+  await setDoc(doc(db,'sessoes', sid), {
+    colaboradorId: colaborador.id, ruaId: rua.ruaId, grupoId: rua.grupoId,
+    data: todayStr(), status: jaConcluida ? 'concluida' : 'em_andamento'
+  }, { merge: true });
+
+  const endSnap = await getDocs(query(collection(db,'enderecos'), where('ruaId','==', rua.ruaId), where('ativo','==', true)));
+  enderecosDaRua = endSnap.docs.map(d=>({id:d.id, ...d.data()})).sort((a,b)=>(a.ordem||0)-(b.ordem||0));
+
+  const regSnap = await getDocs(query(collection(db,'registros'), where('sessaoId','==', sid)));
+  registrosDaSessao = {};
+  regSnap.docs.forEach(d=> registrosDaSessao[d.data().enderecoId] = {id:d.id, ...d.data()});
+
+  currentIndex = enderecosDaRua.findIndex(e => !registrosDaSessao[e.id]);
+  if(currentIndex === -1){
+    mostrarConcluido();
+  } else {
+    renderEndereco();
+    showScreen('screen-contagem');
+  }
+}
+
+function renderEndereco(){
+  const e = enderecosDaRua[currentIndex];
+  const totalContados = Object.keys(registrosDaSessao).length;
+  document.getElementById('addr-progress-label').textContent = `${totalContados} / ${enderecosDaRua.length} endereços`;
+  document.getElementById('addr-progress-fill').style.width = `${Math.round((totalContados/enderecosDaRua.length)*100)}%`;
+  document.getElementById('addr-codigo').textContent = e.codigo;
+  document.getElementById('addr-lado').textContent = e.lado || 'ÚNICO';
+}
+
+document.getElementById('btn-acerto').addEventListener('click', ()=> salvarRegistro('ACERTO', {}));
+
+document.querySelectorAll('.btn-ocorrencia').forEach(btn=>{
+  btn.addEventListener('click', ()=> abrirModalOcorrencia(btn.dataset.tipo));
+});
+
+// ---------------- 4. Modal ocorrência ----------------
+let fotoBase64Atual = null;
+function abrirModalOcorrencia(tipo){
+  document.getElementById('modal-tipo-chip').textContent = tipo;
+  document.getElementById('modal-tipo-chip').dataset.tipo = tipo;
+  document.getElementById('modal-observacao').value = '';
+  document.getElementById('modal-codigo-produto').value = '';
+  document.getElementById('modal-foto-preview').style.display = 'none';
+  document.getElementById('modal-foto-input').value = '';
+  fotoBase64Atual = null;
+  document.getElementById('modal-ocorrencia').classList.add('visible');
+}
+document.getElementById('btn-cancelar-ocorrencia').addEventListener('click', ()=>{
+  document.getElementById('modal-ocorrencia').classList.remove('visible');
+});
+
+document.getElementById('modal-foto-input').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const img = new Image();
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    img.onload = ()=>{
+      const canvas = document.createElement('canvas');
+      const maxW = 800;
+      const scale = Math.min(1, maxW / img.width);
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      fotoBase64Atual = canvas.toDataURL('image/jpeg', 0.6);
+      const preview = document.getElementById('modal-foto-preview');
+      preview.src = fotoBase64Atual;
+      preview.style.display = 'block';
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('btn-salvar-ocorrencia').addEventListener('click', async ()=>{
+  const tipo = document.getElementById('modal-tipo-chip').dataset.tipo;
+  await salvarRegistro(tipo, {
+    observacao: document.getElementById('modal-observacao').value.trim(),
+    codigoProduto: document.getElementById('modal-codigo-produto').value.trim(),
+    foto: fotoBase64Atual
+  });
+  document.getElementById('modal-ocorrencia').classList.remove('visible');
+});
+
+// ---------------- 5. Salvar registro (com auditoria) ----------------
+async function salvarRegistro(tipo, extras){
+  const endereco = enderecosDaRua[currentIndex];
+  const registroId = `${sessaoAtualId}__${endereco.id}`;
+  const now = nowSaoPaulo();
+  const existente = registrosDaSessao[endereco.id];
+
+  const novoTopo = {
+    tipo,
+    observacao: extras.observacao || '',
+    codigoProduto: extras.codigoProduto || '',
+    foto: extras.foto || null,
+    timestamp: Timestamp.fromDate(now),
+    data: todayStr(),
+    diaSemana: DIAS[now.getDay()],
+    hora: now.toTimeString().slice(0,5)
+  };
+
+  let historico = existente && existente.historico ? existente.historico : [];
+  if(existente){
+    historico = [...historico, {
+      tipo: existente.tipo, observacao: existente.observacao, codigoProduto: existente.codigoProduto,
+      timestamp: existente.timestamp, alteradoEm: Timestamp.fromDate(now)
+    }];
+  }
+
+  const data = {
+    sessaoId: sessaoAtualId, colaboradorId: colaborador.id, ruaId: ruaAtual.ruaId,
+    grupoId: ruaAtual.grupoId, enderecoId: endereco.id, enderecoCodigo: endereco.codigo,
+    ...novoTopo, historico
+  };
+
+  try{
+    await setDoc(doc(db,'registros', registroId), data);
+    registrosDaSessao[endereco.id] = { id: registroId, ...data };
+    toast(existente ? 'Registro corrigido.' : 'Salvo.');
+    avancar();
+  }catch(err){
+    toast('Sem conexão — será salvo quando a internet voltar.', true);
+    registrosDaSessao[endereco.id] = { id: registroId, ...data };
+    avancar();
+  }
+}
+
+function avancar(){
+  let next = currentIndex + 1;
+  while(next < enderecosDaRua.length && registrosDaSessao[enderecosDaRua[next].id] && next === currentIndex) next++;
+  // avança pro próximo ainda não revisado, senão pro final
+  next = enderecosDaRua.findIndex((e, i) => i > currentIndex && !registrosDaSessao[e.id]);
+  if(next === -1){
+    // verifica se sobrou algum sem registro em qualquer posição
+    const faltando = enderecosDaRua.findIndex(e => !registrosDaSessao[e.id]);
+    if(faltando === -1){ mostrarConcluido(); return; }
+    currentIndex = faltando;
+  } else {
+    currentIndex = next;
+  }
+  renderEndereco();
+}
+
+// ---------------- 6. Revisão (voltar) ----------------
+document.getElementById('btn-voltar-endereco').addEventListener('click', ()=>{
+  const list = document.getElementById('review-list');
+  const contados = enderecosDaRua.filter(e => registrosDaSessao[e.id]);
+  if(contados.length === 0){
+    list.innerHTML = '<div class="hint">Nenhum endereço contado ainda nesta sessão.</div>';
+  } else {
+    list.innerHTML = contados.map(e => {
+      const r = registrosDaSessao[e.id];
+      return `<div class="review-item" data-endereco="${e.id}"><span class="code">${e.codigo}</span><span class="tipo">${r.tipo}</span></div>`;
+    }).join('');
+    list.querySelectorAll('.review-item').forEach(item=>{
+      item.addEventListener('click', ()=>{
+        currentIndex = enderecosDaRua.findIndex(e => e.id === item.dataset.endereco);
+        renderEndereco();
+        showScreen('screen-contagem');
+      });
+    });
+  }
+  showScreen('screen-revisao');
+});
+document.getElementById('btn-fechar-revisao').addEventListener('click', ()=> showScreen('screen-contagem'));
+
+// ---------------- 7. Concluído ----------------
+async function mostrarConcluido(){
+  await setDoc(doc(db,'sessoes', sessaoAtualId), { status: 'concluida', concluidoEm: Timestamp.fromDate(nowSaoPaulo()) }, { merge: true });
+
+  const contagens = { ACERTO:0, FALTA:0, SOBRA:0, OUTROS:0 };
+  Object.values(registrosDaSessao).forEach(r=>{
+    if(r.tipo === 'ACERTO') contagens.ACERTO++;
+    else if(r.tipo === 'FALTA') contagens.FALTA++;
+    else if(r.tipo === 'SOBRA') contagens.SOBRA++;
+    else contagens.OUTROS++;
+  });
+
+  document.getElementById('summary-grid').innerHTML = `
+    <div class="summary-item"><div class="num">${enderecosDaRua.length}</div><div class="lbl">Endereços</div></div>
+    <div class="summary-item"><div class="num" style="color:var(--success)">${contagens.ACERTO}</div><div class="lbl">Acertos</div></div>
+    <div class="summary-item"><div class="num" style="color:var(--danger)">${contagens.FALTA}</div><div class="lbl">Faltas</div></div>
+    <div class="summary-item"><div class="num" style="color:var(--warn)">${contagens.SOBRA}</div><div class="lbl">Sobras</div></div>
+  `;
+  showScreen('screen-concluido');
+}
+document.getElementById('btn-voltar-minha-contagem').addEventListener('click', carregarMinhaContagem);
+</script>
+</body>
+</html>
