@@ -8,17 +8,17 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0F1626;
-    --panel:#1A2438;
-    --panel-2:#212D46;
-    --border:#2B3752;
-    --text:#E9EEF7;
-    --muted:#8C99B8;
-    --accent:#F5A623;
-    --accent-dark:#C97F0F;
-    --success:#2FBF71;
-    --danger:#EF5D5D;
-    --warn:#F5C542;
+    --bg:#F4F5F8;
+    --panel:#FFFFFF;
+    --panel-2:#F1F2F6;
+    --border:#E3E6EC;
+    --text:#1B2233;
+    --muted:#7A8296;
+    --accent:#E0303F;
+    --accent-dark:#B9232F;
+    --success:#2FA36B;
+    --danger:#C0392B;
+    --warn:#D98A15;
     --radius:10px;
   }
   *{box-sizing:border-box;}
@@ -32,10 +32,10 @@
 
   /* ---------- Login ---------- */
   #login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:
-    radial-gradient(circle at 20% 20%, rgba(245,166,35,.08), transparent 40%),
-    radial-gradient(circle at 80% 80%, rgba(47,191,113,.06), transparent 40%),
+    radial-gradient(circle at 20% 20%, rgba(224,48,63,.06), transparent 40%),
+    radial-gradient(circle at 80% 80%, rgba(224,48,63,.04), transparent 40%),
     var(--bg);}
-  .login-box{width:340px;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:32px;}
+  .login-box{width:340px;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:32px;box-shadow:0 4px 24px rgba(20,25,40,.06);}
   .login-box .brand{font-size:22px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:4px;}
   .login-box .brand .dot{width:10px;height:10px;background:var(--accent);border-radius:3px;display:inline-block;transform:rotate(45deg);}
   .login-box p.sub{color:var(--muted);margin:0 0 24px;font-size:13px;}
@@ -47,20 +47,22 @@
   .login-error{color:var(--danger);font-size:13px;margin-top:10px;min-height:16px;}
 
   /* ---------- Shell ---------- */
-  #app-shell{display:none;min-height:100vh;}
+  #app-shell{display:none;min-height:100vh;flex-direction:column;}
   #app-shell.visible{display:flex;}
-  .sidebar{width:230px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);padding:20px 14px;display:flex;flex-direction:column;}
-  .sidebar .brand{font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px;padding:0 8px 22px;}
-  .sidebar .brand .dot{width:9px;height:9px;background:var(--accent);border-radius:3px;display:inline-block;transform:rotate(45deg);}
-  .nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:var(--muted);text-decoration:none;font-weight:500;margin-bottom:2px;font-size:13.5px;}
+  .topnav{display:flex;align-items:center;gap:22px;padding:12px 28px;background:var(--panel);border-bottom:1px solid var(--border);flex-wrap:wrap;box-shadow:0 1px 3px rgba(20,25,40,.04);}
+  .topnav-brand{display:flex;align-items:center;gap:11px;}
+  .brand-box{width:38px;height:38px;border-radius:9px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-family:'Space Grotesk',sans-serif;font-size:15px;flex-shrink:0;}
+  .brand-textwrap{line-height:1.15;}
+  .brand-title{font-size:15px;font-weight:700;font-family:'Space Grotesk',sans-serif;}
+  .brand-sub{font-size:11px;color:var(--muted);}
+  .topnav-pills{display:flex;gap:6px;flex:1;flex-wrap:wrap;}
+  .nav-item{padding:9px 15px;border-radius:999px;font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;white-space:nowrap;}
   .nav-item:hover{background:var(--panel-2);color:var(--text);}
-  .nav-item.active{background:rgba(245,166,35,.12);color:var(--accent);}
-  .nav-item svg{width:16px;height:16px;flex-shrink:0;}
-  .sidebar-footer{margin-top:auto;padding-top:14px;border-top:1px solid var(--border);}
-  .logout-link{color:var(--muted);font-size:12.5px;background:none;border:none;padding:8px 12px;width:100%;text-align:left;border-radius:8px;}
+  .nav-item.active{background:var(--accent);color:#fff;}
+  .logout-link{background:none;border:1px solid var(--border);color:var(--muted);padding:8px 15px;border-radius:999px;font-size:12.5px;white-space:nowrap;}
   .logout-link:hover{background:var(--panel-2);color:var(--text);}
 
-  .main{flex:1;padding:28px 34px;max-width:1100px;}
+  .main{flex:1;padding:28px 34px;max-width:1100px;margin:0 auto;width:100%;}
   .page-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;}
   .page-header h1{font-size:22px;margin:0 0 4px;}
   .page-header p{color:var(--muted);margin:0;font-size:13px;}
@@ -136,9 +138,15 @@
 
 <!-- ================= APP SHELL ================= -->
 <div id="app-shell">
-  <aside class="sidebar">
-    <div class="brand"><span class="dot"></span>SwiftCount</div>
-    <nav>
+  <header class="topnav">
+    <div class="topnav-brand">
+      <div class="brand-box">SC</div>
+      <div class="brand-textwrap">
+        <div class="brand-title">SwiftCount</div>
+        <div class="brand-sub">Painel Administrativo</div>
+      </div>
+    </div>
+    <nav class="topnav-pills">
       <a href="#" class="nav-item" data-page="colaboradores">Colaboradores</a>
       <a href="#" class="nav-item" data-page="grupos">Grupos</a>
       <a href="#" class="nav-item" data-page="ruas">Ruas</a>
@@ -146,10 +154,8 @@
       <a href="#" class="nav-item" data-page="atribuicoes">Atribuições</a>
       <a href="#" class="nav-item" data-page="movimentacoes">Movimentações</a>
     </nav>
-    <div class="sidebar-footer">
-      <button class="logout-link" id="logout-btn">Sair</button>
-    </div>
-  </aside>
+    <button class="logout-link" id="logout-btn">Sair</button>
+  </header>
 
   <main class="main">
     <!-- COLABORADORES -->
