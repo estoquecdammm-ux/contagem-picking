@@ -144,6 +144,7 @@
       <a href="#" class="nav-item" data-page="ruas">Ruas</a>
       <a href="#" class="nav-item" data-page="enderecos">Endereços</a>
       <a href="#" class="nav-item" data-page="atribuicoes">Atribuições</a>
+      <a href="#" class="nav-item" data-page="movimentacoes">Movimentações</a>
     </nav>
     <div class="sidebar-footer">
       <button class="logout-link" id="logout-btn">Sair</button>
@@ -206,6 +207,32 @@
         <button class="btn btn-new" data-open-modal="atribuicao">+ Nova atribuição</button>
       </div>
       <div id="atribuicoes-groups"></div>
+    </section>
+
+    <!-- MOVIMENTAÇÕES -->
+    <section id="page-movimentacoes" class="page" style="display:none">
+      <div class="page-header">
+        <div><h1>Movimentações</h1><p>Todos os registros feitos pelos estoquistas</p></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <select id="filtro-colaborador" style="max-width:200px;"><option value="">Todos colaboradores</option></select>
+        <select id="filtro-rua" style="max-width:180px;"><option value="">Todas ruas</option></select>
+        <select id="filtro-tipo" style="max-width:180px;">
+          <option value="">Todos os tipos</option>
+          <option value="ACERTO">Acerto</option>
+          <option value="FALTA">Falta</option>
+          <option value="SOBRA">Sobra</option>
+          <option value="SEPARAÇÃO DEIXADA">Separação deixada</option>
+          <option value="RESSUPRIMENTO INCORRETO">Ressuprimento incorreto</option>
+          <option value="AVARIA SEM TRATATIVA">Avaria sem tratativa</option>
+          <option value="OUTROS">Outros</option>
+        </select>
+        <input type="date" id="filtro-data" style="max-width:160px;">
+      </div>
+      <table>
+        <thead><tr><th>Data/Hora</th><th>Colaborador</th><th>Rua</th><th>Endereço</th><th>Tipo</th><th></th></tr></thead>
+        <tbody id="tbody-movimentacoes"></tbody>
+      </table>
     </section>
   </main>
 </div>
@@ -327,6 +354,17 @@
   </div>
 </div>
 
+<!-- ================= MODAL: DETALHE MOVIMENTAÇÃO ================= -->
+<div class="modal-overlay" id="modal-detalhe-mov">
+  <div class="modal">
+    <h2>Detalhe da movimentação <button class="modal-close" data-close>&times;</button></h2>
+    <div id="detalhe-mov-content" style="font-size:13.5px;line-height:1.7;"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" data-close>Fechar</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast-wrap"></div>
 
 <script type="module">
@@ -336,7 +374,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
-  onSnapshot, query, where, getDocs
+  onSnapshot, query, where, getDocs, orderBy, limit
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -475,6 +513,7 @@ let grupos = [];
 let ruas = [];
 let enderecos = [];
 let atribuicoes = [];
+let registros = [];
 
 function grupoNome(id){ const g = grupos.find(x=>x.id===id); return g ? g.nome : '—'; }
 function ruaCodigo(id){ const r = ruas.find(x=>x.id===id); return r ? r.codigo : '—'; }
@@ -491,7 +530,9 @@ function startListeners(){
     renderColaboradores();
     fillSelect('colaborador-grupo', grupos);
     fillSelect('atrib-colaborador', colaboradores, 'nome');
+    fillSelect('filtro-colaborador', colaboradores, 'nome');
     renderAtribuicoes();
+    renderMovimentacoes();
   });
   onSnapshot(collection(db,'grupos'), snap=>{
     grupos = snap.docs.map(d=>({id:d.id, ...d.data()}));
@@ -505,8 +546,10 @@ function startListeners(){
     ruas = snap.docs.map(d=>({id:d.id, ...d.data()}));
     renderRuas();
     fillSelect('endereco-rua', ruas, 'codigo');
+    fillSelect('filtro-rua', ruas, 'codigo');
     renderEnderecos();
     renderAtribuicoes();
+    renderMovimentacoes();
   });
   onSnapshot(collection(db,'enderecos'), snap=>{
     enderecos = snap.docs.map(d=>({id:d.id, ...d.data()}));
@@ -515,6 +558,10 @@ function startListeners(){
   onSnapshot(collection(db,'atribuicoes'), snap=>{
     atribuicoes = snap.docs.map(d=>({id:d.id, ...d.data()}));
     renderAtribuicoes();
+  });
+  onSnapshot(query(collection(db,'registros'), orderBy('timestamp','desc'), limit(500)), snap=>{
+    registros = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    renderMovimentacoes();
   });
 }
 
@@ -824,6 +871,70 @@ function renderAtribuicoes(){
       </div>`;
   }).join('');
   wrap.querySelectorAll('[data-toggle-atrib]').forEach(b=>b.addEventListener('click', ()=>toggleAtivo('atribuicoes', b.dataset.toggleAtrib, atribuicoes)));
+}
+
+// ================= MOVIMENTAÇÕES =================
+['filtro-colaborador','filtro-rua','filtro-tipo','filtro-data'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', renderMovimentacoes);
+});
+
+function formatTimestamp(ts){
+  if(!ts) return '—';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+}
+
+function renderMovimentacoes(){
+  const tb = document.getElementById('tbody-movimentacoes');
+  if(!tb) return;
+  const fColab = document.getElementById('filtro-colaborador').value;
+  const fRua = document.getElementById('filtro-rua').value;
+  const fTipo = document.getElementById('filtro-tipo').value;
+  const fData = document.getElementById('filtro-data').value;
+
+  let filtrados = registros.filter(r=>{
+    if(fColab && r.colaboradorId !== fColab) return false;
+    if(fRua && r.ruaId !== fRua) return false;
+    if(fTipo && r.tipo !== fTipo) return false;
+    if(fData && r.data !== fData) return false;
+    return true;
+  });
+
+  if(filtrados.length === 0){
+    tb.innerHTML = `<tr><td colspan="6"><div class="empty-state">Nenhuma movimentação encontrada.</div></td></tr>`;
+    return;
+  }
+
+  tb.innerHTML = filtrados.map(r=>`
+    <tr>
+      <td class="mono">${formatTimestamp(r.timestamp)}</td>
+      <td>${colaboradorNome(r.colaboradorId)}</td>
+      <td class="mono">${ruaCodigo(r.ruaId)}</td>
+      <td class="mono">${r.enderecoCodigo || '—'}</td>
+      <td><span class="badge ${r.tipo === 'ACERTO' ? 'badge-on' : 'badge-off'}">${r.tipo}</span></td>
+      <td><button class="icon-btn" data-detalhe="${r.id}" title="Ver detalhe">👁</button></td>
+    </tr>`).join('');
+
+  tb.querySelectorAll('[data-detalhe]').forEach(b=>b.addEventListener('click', ()=>abrirDetalheMov(b.dataset.detalhe)));
+}
+
+function abrirDetalheMov(id){
+  const r = registros.find(x=>x.id===id);
+  const historico = (r.historico && r.historico.length > 0) ? `
+    <p style="margin-top:14px;"><strong>Histórico de alterações:</strong></p>
+    ${r.historico.map(h=>`<div class="hint" style="margin-bottom:6px;">• ${h.tipo} — ${h.observacao || 'sem observação'} (alterado em ${formatTimestamp(h.alteradoEm)})</div>`).join('')}
+  ` : '';
+  document.getElementById('detalhe-mov-content').innerHTML = `
+    <p><strong>Colaborador:</strong> ${colaboradorNome(r.colaboradorId)}</p>
+    <p><strong>Rua:</strong> ${ruaCodigo(r.ruaId)} &nbsp; <strong>Endereço:</strong> ${r.enderecoCodigo || '—'}</p>
+    <p><strong>Tipo:</strong> ${r.tipo}</p>
+    <p><strong>Data/Hora:</strong> ${formatTimestamp(r.timestamp)} (${r.diaSemana || ''})</p>
+    <p><strong>Observação:</strong> ${r.observacao || '—'}</p>
+    <p><strong>Código do produto:</strong> ${r.codigoProduto || '—'}</p>
+    ${r.foto ? `<p><strong>Foto:</strong></p><img src="${r.foto}" style="width:100%;border-radius:10px;margin-top:6px;">` : ''}
+    ${historico}
+  `;
+  openModal('detalhe-mov');
 }
 
 // ---------------- Generic toggle ativo/inativo ----------------

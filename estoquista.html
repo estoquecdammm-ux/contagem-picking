@@ -90,10 +90,18 @@
   .toast.error{border-left-color:var(--danger);}
 
   .icon-num{width:56px;height:56px;border-radius:50%;background:var(--panel-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:6px;}
+
+  .update-banner{display:none;position:sticky;top:0;z-index:150;background:var(--accent);color:#1a1200;padding:10px 16px;font-size:13px;font-weight:700;align-items:center;justify-content:space-between;gap:10px;}
+  .update-banner.visible{display:flex;}
+  .update-banner button{background:#1a1200;color:var(--accent);border:none;border-radius:8px;padding:7px 12px;font-weight:700;font-size:12.5px;white-space:nowrap;}
 </style>
 </head>
 <body>
 <div class="app">
+  <div id="update-banner" class="update-banner">
+    <span>🔔 O administrador atualizou dados.</span>
+    <button id="btn-atualizar-banner">Atualizar agora</button>
+  </div>
   <div class="topbar"><span class="dot"></span><span class="brand">SwiftCount</span></div>
 
   <!-- TOKEN INVÁLIDO -->
@@ -144,6 +152,7 @@
       <button class="btn-ocorrencia" data-tipo="OUTROS">Outros</button>
     </div>
 
+    <button class="btn btn-secondary" id="btn-buscar-endereco" style="margin-top:10px;">🔍 Ir para outro endereço</button>
     <button class="voltar-link" id="btn-voltar-endereco">‹ Revisar endereços já contados</button>
   </div>
 
@@ -159,6 +168,7 @@
     <div class="icon-num">🎉</div>
     <h2 style="margin:0">Contagem concluída</h2>
     <div class="summary-grid" id="summary-grid" style="width:100%"></div>
+    <button class="btn btn-secondary" id="btn-revisar-concluido" style="width:100%;">Revisar / corrigir endereços</button>
     <button class="btn btn-primary btn-lg" id="btn-voltar-minha-contagem">Voltar para Minha Contagem</button>
   </div>
 
@@ -192,6 +202,18 @@
     </div>
     <button class="btn btn-primary btn-lg" id="btn-salvar-ocorrencia" style="margin-top:6px;">Salvar e próximo</button>
     <button class="btn btn-secondary" id="btn-cancelar-ocorrencia" style="margin-top:10px;">Cancelar</button>
+  </div>
+</div>
+
+<!-- MODAL BUSCA ENDEREÇO -->
+<div class="modal-overlay" id="modal-busca-endereco">
+  <div class="modal-sheet">
+    <h2>Ir para endereço</h2>
+    <div class="field" style="margin-top:12px;">
+      <input type="text" id="busca-endereco-input" placeholder="Digite o código do endereço" autocomplete="off">
+    </div>
+    <div class="review-list" id="busca-endereco-list"></div>
+    <button class="btn btn-secondary" id="btn-cancelar-busca" style="margin-top:14px;">Cancelar</button>
   </div>
 </div>
 
@@ -247,6 +269,26 @@ let enderecosDaRua = [];
 let registrosDaSessao = {}; // enderecoId -> registro doc
 let sessaoAtualId = null;
 let currentIndex = 0;
+let pendingReturn = null; // {type:'index', index:N} | {type:'concluido'} | null
+let revisaoOrigem = 'contagem';
+
+document.getElementById('btn-atualizar-banner').addEventListener('click', ()=> window.location.reload());
+
+function watchForChanges(q){
+  let primeira = true;
+  onSnapshot(q, ()=>{
+    if(primeira){ primeira = false; return; }
+    document.getElementById('update-banner').classList.add('visible');
+  });
+}
+let listenersIniciados = false;
+function iniciarListenersAtualizacao(){
+  if(listenersIniciados) return;
+  listenersIniciados = true;
+  watchForChanges(collection(db,'ruas'));
+  watchForChanges(collection(db,'enderecos'));
+  watchForChanges(query(collection(db,'atribuicoes'), where('colaboradorId','==', colaborador.id)));
+}
 
 // ---------------- 1. Ler token da URL ----------------
 const params = new URLSearchParams(window.location.search);
@@ -263,6 +305,7 @@ async function init(){
 
   const lembrado = localStorage.getItem('swiftcount_confirmado_' + token);
   if(lembrado === colaborador.matricula){
+    iniciarListenersAtualizacao();
     await carregarMinhaContagem();
   } else {
     showScreen('screen-matricula');
@@ -274,6 +317,7 @@ document.getElementById('btn-confirmar-matricula').addEventListener('click', asy
   const val = document.getElementById('input-matricula').value.trim();
   if(val === String(colaborador.matricula)){
     localStorage.setItem('swiftcount_confirmado_' + token, colaborador.matricula);
+    iniciarListenersAtualizacao();
     await carregarMinhaContagem();
   } else {
     document.getElementById('matricula-error').textContent = 'Matrícula não confere. Tente novamente.';
@@ -487,10 +531,21 @@ async function salvarRegistro(tipo, extras){
     await setDoc(doc(db,'registros', registroId), data);
     registrosDaSessao[endereco.id] = { id: registroId, ...data };
     toast(existente ? 'Registro corrigido.' : 'Salvo.');
-    avancar();
+    avancarOuRetornar();
   }catch(err){
     toast('Sem conexão — será salvo quando a internet voltar.', true);
     registrosDaSessao[endereco.id] = { id: registroId, ...data };
+    avancarOuRetornar();
+  }
+}
+
+function avancarOuRetornar(){
+  if(pendingReturn){
+    const pr = pendingReturn;
+    pendingReturn = null;
+    if(pr.type === 'concluido'){ mostrarConcluido(); }
+    else { currentIndex = pr.index; renderEndereco(); showScreen('screen-contagem'); }
+  } else {
     avancar();
   }
 }
@@ -512,7 +567,8 @@ function avancar(){
 }
 
 // ---------------- 6. Revisão (voltar) ----------------
-document.getElementById('btn-voltar-endereco').addEventListener('click', ()=>{
+function abrirRevisao(origem){
+  revisaoOrigem = origem;
   const list = document.getElementById('review-list');
   const contados = enderecosDaRua.filter(e => registrosDaSessao[e.id]);
   if(contados.length === 0){
@@ -524,15 +580,55 @@ document.getElementById('btn-voltar-endereco').addEventListener('click', ()=>{
     }).join('');
     list.querySelectorAll('.review-item').forEach(item=>{
       item.addEventListener('click', ()=>{
-        currentIndex = enderecosDaRua.findIndex(e => e.id === item.dataset.endereco);
+        const idx = enderecosDaRua.findIndex(e => e.id === item.dataset.endereco);
+        pendingReturn = origem === 'concluido' ? { type: 'concluido' } : { type: 'index', index: currentIndex };
+        currentIndex = idx;
         renderEndereco();
         showScreen('screen-contagem');
       });
     });
   }
   showScreen('screen-revisao');
+}
+document.getElementById('btn-voltar-endereco').addEventListener('click', ()=> abrirRevisao('contagem'));
+document.getElementById('btn-revisar-concluido').addEventListener('click', ()=> abrirRevisao('concluido'));
+document.getElementById('btn-fechar-revisao').addEventListener('click', ()=> showScreen(revisaoOrigem === 'concluido' ? 'screen-concluido' : 'screen-contagem'));
+
+// ---------------- Busca livre de endereço (sem cadeia fixa) ----------------
+document.getElementById('btn-buscar-endereco').addEventListener('click', ()=>{
+  document.getElementById('busca-endereco-input').value = '';
+  renderBuscaList('');
+  document.getElementById('modal-busca-endereco').classList.add('visible');
+  setTimeout(()=> document.getElementById('busca-endereco-input').focus(), 60);
 });
-document.getElementById('btn-fechar-revisao').addEventListener('click', ()=> showScreen('screen-contagem'));
+document.getElementById('btn-cancelar-busca').addEventListener('click', ()=>{
+  document.getElementById('modal-busca-endereco').classList.remove('visible');
+});
+document.getElementById('busca-endereco-input').addEventListener('input', (e)=> renderBuscaList(e.target.value));
+
+function renderBuscaList(filtro){
+  const list = document.getElementById('busca-endereco-list');
+  const f = filtro.trim().toLowerCase();
+  const filtrados = enderecosDaRua.filter(e => !f || e.codigo.toLowerCase().includes(f));
+  if(filtrados.length === 0){
+    list.innerHTML = '<div class="hint">Nenhum endereço encontrado.</div>';
+    return;
+  }
+  list.innerHTML = filtrados.map(e=>{
+    const r = registrosDaSessao[e.id];
+    return `<div class="review-item" data-idx="${enderecosDaRua.indexOf(e)}"><span class="code">${e.codigo}</span><span class="tipo">${r ? r.tipo : '—'}</span></div>`;
+  }).join('');
+  list.querySelectorAll('.review-item').forEach(item=>{
+    item.addEventListener('click', ()=>{
+      const idx = Number(item.dataset.idx);
+      pendingReturn = { type: 'index', index: currentIndex };
+      currentIndex = idx;
+      document.getElementById('modal-busca-endereco').classList.remove('visible');
+      renderEndereco();
+      showScreen('screen-contagem');
+    });
+  });
+}
 
 // ---------------- 7. Concluído ----------------
 async function mostrarConcluido(){
