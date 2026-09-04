@@ -40,6 +40,10 @@
   .field{margin-bottom:16px;}
   label{font-size:12.5px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px;}
 
+  .update-banner{display:none;position:sticky;top:0;z-index:150;background:var(--accent);color:#1a1200;padding:10px 16px;font-size:13px;font-weight:700;align-items:center;justify-content:space-between;gap:10px;}
+  .update-banner.visible{display:flex;}
+  .update-banner button{background:#1a1200;color:var(--accent);border:none;border-radius:8px;padding:7px 12px;font-weight:700;font-size:12.5px;white-space:nowrap;}
+
   /* Minha Contagem */
   .greeting{font-size:20px;font-weight:700;margin:4px 0 2px;}
   .subgreeting{color:var(--muted);font-size:13.5px;margin-bottom:20px;}
@@ -47,22 +51,18 @@
   .rua-card .rua-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
   .rua-card .rua-codigo{font-size:17px;font-weight:700;font-family:'JetBrains Mono',monospace;}
   .rua-card .rua-grupo{color:var(--muted);font-size:12.5px;}
-  .progress-bar{height:8px;background:var(--panel-2);border-radius:99px;overflow:hidden;margin-bottom:10px;}
-  .progress-fill{height:100%;background:var(--accent);border-radius:99px;transition:width .3s;}
   .progress-label{font-size:12.5px;color:var(--muted);margin-bottom:12px;}
   .status-chip{font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;background:rgba(47,191,113,.15);color:var(--success);}
   .status-chip.pendente{background:rgba(245,166,35,.15);color:var(--accent);}
 
-  /* Contagem por endereço */
-  .addr-header{text-align:center;margin-bottom:8px;}
-  .addr-progress-label{color:var(--muted);font-size:13px;margin-bottom:6px;}
-  .addr-code{font-size:32px;font-weight:800;font-family:'JetBrains Mono',monospace;margin:4px 0;letter-spacing:-.01em;}
-  .addr-side{display:inline-block;background:var(--panel-2);border:1px solid var(--border);padding:4px 12px;border-radius:99px;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:18px;}
+  /* Contagem livre */
+  .addr-input-wrap{margin-bottom:14px;}
+  .addr-input-wrap input{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace;text-align:center;letter-spacing:.02em;}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
   .btn-ocorrencia{background:var(--panel-2);border:1px solid var(--border);color:var(--text);padding:16px 10px;border-radius:12px;font-weight:600;font-size:13.5px;line-height:1.3;}
   .btn-ocorrencia:active{background:var(--border);}
   .btn-acerto{background:var(--success);color:#052112;padding:22px;border-radius:14px;font-weight:800;font-size:19px;border:none;width:100%;margin-bottom:14px;}
-  .voltar-link{background:none;border:none;color:var(--muted);font-size:13.5px;font-weight:600;padding:10px;margin-top:6px;}
+  .section-label{font-size:13px;font-weight:700;color:var(--muted);margin:22px 0 10px;text-transform:uppercase;letter-spacing:.03em;}
 
   /* Modal ocorrência */
   .modal-overlay{position:fixed;inset:0;background:rgba(6,9,17,.7);display:none;align-items:flex-end;justify-content:center;z-index:100;}
@@ -79,21 +79,20 @@
   .summary-item .num{font-size:24px;font-weight:800;font-family:'Space Grotesk',sans-serif;}
   .summary-item .lbl{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;}
 
-  /* Revisão */
-  .review-list{display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow-y:auto;}
+  /* Lista de registros */
+  .review-list{display:flex;flex-direction:column;gap:8px;}
   .review-item{display:flex;justify-content:space-between;align-items:center;background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
   .review-item .code{font-family:'JetBrains Mono',monospace;font-size:14px;}
-  .review-item .tipo{font-size:12px;font-weight:700;color:var(--muted);}
+  .review-item .tipo{font-size:11.5px;font-weight:700;color:var(--muted);}
+  .review-item .tipo.acerto{color:var(--success);}
+  .review-item .tipo.falta{color:var(--danger);}
+  .review-item .tipo.sobra{color:var(--warn);}
 
   #toast-wrap{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:300;width:calc(100% - 40px);max-width:440px;display:flex;flex-direction:column;gap:8px;}
   .toast{background:var(--panel-2);border:1px solid var(--border);border-left:3px solid var(--success);padding:12px 16px;border-radius:10px;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.4);}
   .toast.error{border-left-color:var(--danger);}
 
   .icon-num{width:56px;height:56px;border-radius:50%;background:var(--panel-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:6px;}
-
-  .update-banner{display:none;position:sticky;top:0;z-index:150;background:var(--accent);color:#1a1200;padding:10px 16px;font-size:13px;font-weight:700;align-items:center;justify-content:space-between;gap:10px;}
-  .update-banner.visible{display:flex;}
-  .update-banner button{background:#1a1200;color:var(--accent);border:none;border-radius:8px;padding:7px 12px;font-weight:700;font-size:12.5px;white-space:nowrap;}
 </style>
 </head>
 <body>
@@ -132,13 +131,13 @@
     <button class="btn btn-secondary" id="btn-ver-historico" style="margin-top:10px;">Ver minhas contagens anteriores</button>
   </div>
 
-  <!-- CONTAGEM POR ENDEREÇO -->
+  <!-- CONTAGEM LIVRE -->
   <div class="screen" id="screen-contagem">
-    <div class="addr-header">
-      <div class="addr-progress-label" id="addr-progress-label"></div>
-      <div class="progress-bar"><div class="progress-fill" id="addr-progress-fill" style="width:0%"></div></div>
-      <div class="addr-code" id="addr-codigo">—</div>
-      <div class="addr-side" id="addr-lado">—</div>
+    <div class="progress-label" id="addr-progress-label" style="text-align:center;"></div>
+
+    <div class="addr-input-wrap">
+      <label>Código do endereço</label>
+      <input type="text" id="input-endereco-atual" placeholder="Digite o endereço" autocomplete="off">
     </div>
 
     <button class="btn-acerto" id="btn-acerto">✓ ACERTO</button>
@@ -152,31 +151,25 @@
       <button class="btn-ocorrencia" data-tipo="OUTROS">Outros</button>
     </div>
 
-    <button class="btn btn-secondary" id="btn-buscar-endereco" style="margin-top:10px;">🔍 Ir para outro endereço</button>
-    <button class="voltar-link" id="btn-voltar-endereco">‹ Revisar endereços já contados</button>
-    <button class="voltar-link" id="btn-ver-resumo-livre">Ver resumo desta rua</button>
+    <button class="btn btn-secondary" id="btn-finalizar-contagem" style="margin-top:16px;">Finalizar contagem desta rua</button>
+
+    <div class="section-label">Registrados nesta sessão</div>
+    <div class="review-list" id="lista-registros-sessao"></div>
   </div>
 
-  <!-- REVISÃO -->
-  <div class="screen" id="screen-revisao">
-    <h2 style="margin:0 0 14px">Revisar endereços</h2>
-    <div class="review-list" id="review-list"></div>
-    <button class="btn btn-secondary" id="btn-fechar-revisao" style="margin-top:16px;">Voltar para contagem</button>
-  </div>
-
-  <!-- CONCLUÍDO -->
+  <!-- CONCLUÍDO / RESUMO -->
   <div class="screen center" id="screen-concluido">
-    <div class="icon-num">🎉</div>
-    <h2 style="margin:0">Contagem concluída</h2>
+    <div class="icon-num" id="concluido-icon">🎉</div>
+    <h2 style="margin:0" id="concluido-titulo">Contagem finalizada</h2>
     <div class="summary-grid" id="summary-grid" style="width:100%"></div>
-    <button class="btn btn-secondary" id="btn-revisar-concluido" style="width:100%;">Revisar / corrigir endereços</button>
+    <button class="btn btn-secondary" id="btn-continuar-editando" style="width:100%;">Continuar editando esta rua</button>
     <button class="btn btn-primary btn-lg" id="btn-voltar-minha-contagem">Voltar para Minha Contagem</button>
   </div>
 
   <!-- HISTÓRICO -->
   <div class="screen" id="screen-historico">
     <h2 style="margin:0 0 4px">Minhas contagens</h2>
-    <p class="hint" style="margin-bottom:16px">Somente leitura — sessões já finalizadas.</p>
+    <p class="hint" style="margin-bottom:16px">Sessões já finalizadas.</p>
     <div class="review-list" id="historico-list"></div>
     <button class="btn btn-secondary" id="btn-fechar-historico" style="margin-top:16px;">Voltar</button>
   </div>
@@ -186,7 +179,7 @@
 <div class="modal-overlay" id="modal-ocorrencia">
   <div class="modal-sheet">
     <span class="tipo-chip" id="modal-tipo-chip">TIPO</span>
-    <h2>Registrar ocorrência</h2>
+    <h2 id="modal-codigo-titulo">Registrar ocorrência</h2>
     <div class="field" style="margin-top:16px;">
       <label>Observação (opcional)</label>
       <textarea id="modal-observacao" rows="2"></textarea>
@@ -201,20 +194,8 @@
       <input type="file" id="modal-foto-input" accept="image/*" capture="environment" style="display:none;">
       <img id="modal-foto-preview" class="photo-preview">
     </div>
-    <button class="btn btn-primary btn-lg" id="btn-salvar-ocorrencia" style="margin-top:6px;">Salvar e próximo</button>
+    <button class="btn btn-primary btn-lg" id="btn-salvar-ocorrencia" style="margin-top:6px;">Salvar</button>
     <button class="btn btn-secondary" id="btn-cancelar-ocorrencia" style="margin-top:10px;">Cancelar</button>
-  </div>
-</div>
-
-<!-- MODAL BUSCA ENDEREÇO -->
-<div class="modal-overlay" id="modal-busca-endereco">
-  <div class="modal-sheet">
-    <h2>Ir para endereço</h2>
-    <div class="field" style="margin-top:12px;">
-      <input type="text" id="busca-endereco-input" placeholder="Digite o código do endereço" autocomplete="off">
-    </div>
-    <div class="review-list" id="busca-endereco-list"></div>
-    <button class="btn btn-secondary" id="btn-cancelar-busca" style="margin-top:14px;">Cancelar</button>
   </div>
 </div>
 
@@ -238,7 +219,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-try{ await enableIndexedDbPersistence(db); }catch(e){ /* multiple tabs open, or unsupported — segue sem offline avançado */ }
+try{ await enableIndexedDbPersistence(db); }catch(e){ /* várias abas abertas, ou sem suporte — segue sem offline avançado */ }
 
 function toast(msg, isError=false){
   const wrap = document.getElementById('toast-wrap');
@@ -260,21 +241,23 @@ function todayStr(){
 function nowSaoPaulo(){
   return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
 }
+function normalizeCodigo(codigo){
+  return codigo.trim().toUpperCase().replace(/\s+/g,'');
+}
 const DIAS = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
 
 // ---------------- Estado global ----------------
 let colaborador = null;
-let ruasAtribuidas = []; // [{ruaId, ruaCodigo, grupoId, grupoNome}]
+let ruasAtribuidas = [];
 let ruaAtual = null;
-let enderecosDaRua = [];
-let registrosDaSessao = {}; // enderecoId -> registro doc
 let sessaoAtualId = null;
-let currentIndex = 0;
-let pendingReturn = null; // {type:'index', index:N} | {type:'concluido'} | null
-let revisaoOrigem = 'contagem';
+let registrosDaSessao = {}; // codigoNormalizado -> registro doc
+
+// ---------------- Token / matrícula ----------------
+const params = new URLSearchParams(window.location.search);
+const token = params.get('token');
 
 document.getElementById('btn-atualizar-banner').addEventListener('click', ()=> window.location.reload());
-
 function watchForChanges(q){
   let primeira = true;
   onSnapshot(q, ()=>{
@@ -287,13 +270,8 @@ function iniciarListenersAtualizacao(){
   if(listenersIniciados) return;
   listenersIniciados = true;
   watchForChanges(collection(db,'ruas'));
-  watchForChanges(collection(db,'enderecos'));
   watchForChanges(query(collection(db,'atribuicoes'), where('colaboradorId','==', colaborador.id)));
 }
-
-// ---------------- 1. Ler token da URL ----------------
-const params = new URLSearchParams(window.location.search);
-const token = params.get('token');
 
 async function init(){
   if(!token){ showScreen('screen-invalido'); return; }
@@ -325,7 +303,7 @@ document.getElementById('btn-confirmar-matricula').addEventListener('click', asy
   }
 });
 
-// ---------------- 2. Minha Contagem ----------------
+// ---------------- Minha Contagem ----------------
 async function carregarMinhaContagem(){
   document.getElementById('minha-contagem-nome').textContent = 'Olá, ' + colaborador.nome.split(' ')[0] + '!';
 
@@ -358,26 +336,23 @@ async function carregarMinhaContagem(){
   list.innerHTML = '';
   for(const r of ruasAtribuidas){
     const sid = sessionId(colaborador.id, r.ruaId, todayStr());
-    const totalEnderecos = (await getDocs(query(collection(db,'enderecos'), where('ruaId','==', r.ruaId), where('ativo','==', true)))).size;
     const totalRegistros = (await getDocs(query(collection(db,'registros'), where('sessaoId','==', sid)))).size;
     const sessaoDoc = await getDoc(doc(db,'sessoes', sid));
     const concluida = sessaoDoc.exists() && sessaoDoc.data().status === 'concluida';
-    const pct = totalEnderecos > 0 ? Math.round((totalRegistros/totalEnderecos)*100) : 0;
 
     const card = document.createElement('div');
     card.className = 'rua-card';
     card.innerHTML = `
       <div class="rua-top">
         <div><div class="rua-codigo">${r.ruaCodigo}</div><div class="rua-grupo">${r.grupoNome}</div></div>
-        <span class="status-chip ${concluida ? '' : 'pendente'}">${concluida ? 'Concluída' : (totalRegistros>0 ? 'Em andamento' : 'Não iniciada')}</span>
+        <span class="status-chip ${concluida ? '' : 'pendente'}">${concluida ? 'Finalizada' : (totalRegistros>0 ? 'Em andamento' : 'Não iniciada')}</span>
       </div>
-      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-      <div class="progress-label">ENDEREÇOS: ${totalRegistros}/${totalEnderecos}</div>
+      <div class="progress-label">${totalRegistros} endereço(s) registrado(s) hoje</div>
       <button class="btn ${concluida ? 'btn-secondary' : 'btn-primary'}" data-rua="${r.ruaId}">
-        ${concluida ? 'Revisar / corrigir contagem' : (totalRegistros>0 ? 'CONTINUAR CONTAGEM' : 'INICIAR CONTAGEM')}
+        ${concluida ? 'Revisar / corrigir' : (totalRegistros>0 ? 'CONTINUAR CONTAGEM' : 'INICIAR CONTAGEM')}
       </button>
     `;
-    card.querySelector('button').addEventListener('click', ()=> iniciarContagem(r, sid, concluida));
+    card.querySelector('button').addEventListener('click', ()=> iniciarContagem(r, sid));
     list.appendChild(card);
   }
   showScreen('screen-minha-contagem');
@@ -400,57 +375,56 @@ async function carregarHistorico(){
     const sessoes = snap.docs.map(d=>({id:d.id, ...d.data()})).sort((a,b)=> (b.data||'').localeCompare(a.data||''));
     list.innerHTML = sessoes.map(s=>{
       const rua = ruasAtribuidas.find(r=>r.ruaId===s.ruaId);
-      return `<div class="review-item"><span class="code">${rua ? rua.ruaCodigo : s.ruaId} — ${s.data}</span><span class="tipo">${s.status === 'concluida' ? 'Concluída' : 'Em andamento'}</span></div>`;
+      return `<div class="review-item"><span class="code">${rua ? rua.ruaCodigo : s.ruaId} — ${s.data}</span><span class="tipo">${s.status === 'concluida' ? 'Finalizada' : 'Em andamento'}</span></div>`;
     }).join('');
   }
   showScreen('screen-historico');
 }
 
-// ---------------- 3. Iniciar contagem de uma rua ----------------
-async function iniciarContagem(rua, sid, jaConcluida){
+// ---------------- Iniciar contagem de uma rua (livre, sem lista fixa) ----------------
+async function iniciarContagem(rua, sid){
   ruaAtual = rua;
   sessaoAtualId = sid;
 
-  await setDoc(doc(db,'sessoes', sid), {
-    colaboradorId: colaborador.id, ruaId: rua.ruaId, grupoId: rua.grupoId,
-    data: todayStr(), status: jaConcluida ? 'concluida' : 'em_andamento'
-  }, { merge: true });
-
-  const endSnap = await getDocs(query(collection(db,'enderecos'), where('ruaId','==', rua.ruaId), where('ativo','==', true)));
-  enderecosDaRua = endSnap.docs.map(d=>({id:d.id, ...d.data()})).sort((a,b)=>(a.ordem||0)-(b.ordem||0));
+  const sessaoDoc = await getDoc(doc(db,'sessoes', sid));
+  if(!sessaoDoc.exists()){
+    await setDoc(doc(db,'sessoes', sid), {
+      colaboradorId: colaborador.id, ruaId: rua.ruaId, grupoId: rua.grupoId,
+      data: todayStr(), status: 'em_andamento'
+    });
+  }
 
   const regSnap = await getDocs(query(collection(db,'registros'), where('sessaoId','==', sid)));
   registrosDaSessao = {};
-  regSnap.docs.forEach(d=> registrosDaSessao[d.data().enderecoId] = {id:d.id, ...d.data()});
+  regSnap.docs.forEach(d=>{
+    const data = d.data();
+    registrosDaSessao[normalizeCodigo(data.enderecoCodigo)] = { id:d.id, ...data };
+  });
 
-  currentIndex = enderecosDaRua.findIndex(e => !registrosDaSessao[e.id]);
-  if(currentIndex === -1){
-    currentIndex = enderecosDaRua.length > 0 ? enderecosDaRua.length - 1 : 0;
-  }
-  renderEndereco();
+  document.getElementById('input-endereco-atual').value = '';
+  renderProgressLabel();
+  renderListaSessao();
   showScreen('screen-contagem');
 }
 
-function renderEndereco(){
-  const e = enderecosDaRua[currentIndex];
-  const totalContados = Object.keys(registrosDaSessao).length;
-  document.getElementById('addr-progress-label').textContent = `${totalContados} / ${enderecosDaRua.length} endereços`;
-  document.getElementById('addr-progress-fill').style.width = `${Math.round((totalContados/enderecosDaRua.length)*100)}%`;
-  document.getElementById('addr-codigo').textContent = e.codigo;
-  document.getElementById('addr-lado').textContent = e.lado || 'ÚNICO';
+function renderProgressLabel(){
+  const total = Object.keys(registrosDaSessao).length;
+  document.getElementById('addr-progress-label').textContent = `Rua ${ruaAtual.ruaCodigo} — ${total} endereço(s) registrado(s)`;
 }
 
 document.getElementById('btn-acerto').addEventListener('click', ()=> salvarRegistro('ACERTO', {}));
-
 document.querySelectorAll('.btn-ocorrencia').forEach(btn=>{
   btn.addEventListener('click', ()=> abrirModalOcorrencia(btn.dataset.tipo));
 });
 
-// ---------------- 4. Modal ocorrência ----------------
+// ---------------- Modal ocorrência ----------------
 let fotoBase64Atual = null;
 function abrirModalOcorrencia(tipo){
+  const codigo = document.getElementById('input-endereco-atual').value.trim();
+  if(!codigo){ toast('Digite o código do endereço primeiro.', true); return; }
   document.getElementById('modal-tipo-chip').textContent = tipo;
   document.getElementById('modal-tipo-chip').dataset.tipo = tipo;
+  document.getElementById('modal-codigo-titulo').textContent = codigo;
   document.getElementById('modal-observacao').value = '';
   document.getElementById('modal-codigo-produto').value = '';
   document.getElementById('modal-foto-preview').style.display = 'none';
@@ -495,12 +469,14 @@ document.getElementById('btn-salvar-ocorrencia').addEventListener('click', async
   document.getElementById('modal-ocorrencia').classList.remove('visible');
 });
 
-// ---------------- 5. Salvar registro (com auditoria) ----------------
+// ---------------- Salvar registro (com auditoria) ----------------
 async function salvarRegistro(tipo, extras){
-  const endereco = enderecosDaRua[currentIndex];
-  const registroId = `${sessaoAtualId}__${endereco.id}`;
+  const codigoDigitado = document.getElementById('input-endereco-atual').value.trim();
+  if(!codigoDigitado){ toast('Digite o código do endereço primeiro.', true); return; }
+  const codigoNorm = normalizeCodigo(codigoDigitado);
+  const registroId = `${sessaoAtualId}__${codigoNorm}`;
   const now = nowSaoPaulo();
-  const existente = registrosDaSessao[endereco.id];
+  const existente = registrosDaSessao[codigoNorm];
 
   const novoTopo = {
     tipo,
@@ -523,124 +499,64 @@ async function salvarRegistro(tipo, extras){
 
   const data = {
     sessaoId: sessaoAtualId, colaboradorId: colaborador.id, ruaId: ruaAtual.ruaId,
-    grupoId: ruaAtual.grupoId, enderecoId: endereco.id, enderecoCodigo: endereco.codigo,
+    grupoId: ruaAtual.grupoId, enderecoCodigo: codigoDigitado,
     ...novoTopo, historico
   };
 
   try{
     await setDoc(doc(db,'registros', registroId), data);
-    registrosDaSessao[endereco.id] = { id: registroId, ...data };
+    registrosDaSessao[codigoNorm] = { id: registroId, ...data };
     toast(existente ? 'Registro corrigido.' : 'Salvo.');
-    avancarOuRetornar();
   }catch(err){
     toast('Sem conexão — será salvo quando a internet voltar.', true);
-    registrosDaSessao[endereco.id] = { id: registroId, ...data };
-    avancarOuRetornar();
+    registrosDaSessao[codigoNorm] = { id: registroId, ...data };
   }
+  document.getElementById('input-endereco-atual').value = '';
+  document.getElementById('input-endereco-atual').focus();
+  renderProgressLabel();
+  renderListaSessao();
 }
 
-function avancarOuRetornar(){
-  if(pendingReturn){
-    const pr = pendingReturn;
-    pendingReturn = null;
-    if(pr.type === 'concluido'){ mostrarConcluido(); }
-    else { currentIndex = pr.index; renderEndereco(); showScreen('screen-contagem'); }
-  } else {
-    avancar();
-  }
+function tipoClasse(tipo){
+  if(tipo === 'ACERTO') return 'acerto';
+  if(tipo === 'FALTA') return 'falta';
+  if(tipo === 'SOBRA') return 'sobra';
+  return '';
 }
 
-function avancar(){
-  let next = currentIndex + 1;
-  while(next < enderecosDaRua.length && registrosDaSessao[enderecosDaRua[next].id] && next === currentIndex) next++;
-  // avança pro próximo ainda não revisado, senão pro final
-  next = enderecosDaRua.findIndex((e, i) => i > currentIndex && !registrosDaSessao[e.id]);
-  if(next === -1){
-    // verifica se sobrou algum sem registro em qualquer posição
-    const faltando = enderecosDaRua.findIndex(e => !registrosDaSessao[e.id]);
-    if(faltando === -1){ mostrarConcluido(); return; }
-    currentIndex = faltando;
-  } else {
-    currentIndex = next;
-  }
-  renderEndereco();
-}
-
-// ---------------- 6. Revisão (voltar) ----------------
-function abrirRevisao(origem){
-  revisaoOrigem = origem;
-  const list = document.getElementById('review-list');
-  const contados = enderecosDaRua.filter(e => registrosDaSessao[e.id]);
-  if(contados.length === 0){
-    list.innerHTML = '<div class="hint">Nenhum endereço contado ainda nesta sessão.</div>';
-  } else {
-    list.innerHTML = contados.map(e => {
-      const r = registrosDaSessao[e.id];
-      return `<div class="review-item" data-endereco="${e.id}"><span class="code">${e.codigo}</span><span class="tipo">${r.tipo}</span></div>`;
-    }).join('');
-    list.querySelectorAll('.review-item').forEach(item=>{
-      item.addEventListener('click', ()=>{
-        const idx = enderecosDaRua.findIndex(e => e.id === item.dataset.endereco);
-        pendingReturn = origem === 'concluido' ? { type: 'concluido' } : { type: 'index', index: currentIndex };
-        currentIndex = idx;
-        renderEndereco();
-        showScreen('screen-contagem');
-      });
-    });
-  }
-  showScreen('screen-revisao');
-}
-document.getElementById('btn-voltar-endereco').addEventListener('click', ()=> abrirRevisao('contagem'));
-document.getElementById('btn-revisar-concluido').addEventListener('click', ()=> abrirRevisao('concluido'));
-document.getElementById('btn-fechar-revisao').addEventListener('click', ()=> showScreen(revisaoOrigem === 'concluido' ? 'screen-concluido' : 'screen-contagem'));
-document.getElementById('btn-ver-resumo-livre').addEventListener('click', ()=> mostrarConcluido());
-
-// ---------------- Busca livre de endereço (sem cadeia fixa) ----------------
-document.getElementById('btn-buscar-endereco').addEventListener('click', ()=>{
-  document.getElementById('busca-endereco-input').value = '';
-  renderBuscaList('');
-  document.getElementById('modal-busca-endereco').classList.add('visible');
-  setTimeout(()=> document.getElementById('busca-endereco-input').focus(), 60);
-});
-document.getElementById('btn-cancelar-busca').addEventListener('click', ()=>{
-  document.getElementById('modal-busca-endereco').classList.remove('visible');
-});
-document.getElementById('busca-endereco-input').addEventListener('input', (e)=> renderBuscaList(e.target.value));
-
-function renderBuscaList(filtro){
-  const list = document.getElementById('busca-endereco-list');
-  const f = filtro.trim().toLowerCase();
-  const filtrados = enderecosDaRua.filter(e => !f || e.codigo.toLowerCase().includes(f));
-  if(filtrados.length === 0){
-    list.innerHTML = '<div class="hint">Nenhum endereço encontrado.</div>';
+function renderListaSessao(){
+  const list = document.getElementById('lista-registros-sessao');
+  const itens = Object.values(registrosDaSessao).sort((a,b)=>{
+    const ta = a.timestamp && a.timestamp.toMillis ? a.timestamp.toMillis() : 0;
+    const tb = b.timestamp && b.timestamp.toMillis ? b.timestamp.toMillis() : 0;
+    return tb - ta;
+  });
+  if(itens.length === 0){
+    list.innerHTML = '<div class="hint">Nenhum endereço registrado ainda nesta rua hoje.</div>';
     return;
   }
-  list.innerHTML = filtrados.map(e=>{
-    const r = registrosDaSessao[e.id];
-    return `<div class="review-item" data-idx="${enderecosDaRua.indexOf(e)}"><span class="code">${e.codigo}</span><span class="tipo">${r ? r.tipo : '—'}</span></div>`;
-  }).join('');
+  list.innerHTML = itens.map(r=>`
+    <div class="review-item" data-codigo="${r.enderecoCodigo}">
+      <span class="code">${r.enderecoCodigo}</span>
+      <span class="tipo ${tipoClasse(r.tipo)}">${r.tipo}${r.historico && r.historico.length ? ' ✎' : ''}</span>
+    </div>`).join('');
   list.querySelectorAll('.review-item').forEach(item=>{
     item.addEventListener('click', ()=>{
-      const idx = Number(item.dataset.idx);
-      pendingReturn = { type: 'index', index: currentIndex };
-      currentIndex = idx;
-      document.getElementById('modal-busca-endereco').classList.remove('visible');
-      renderEndereco();
-      showScreen('screen-contagem');
+      document.getElementById('input-endereco-atual').value = item.dataset.codigo;
+      toast('Endereço carregado — toque em ACERTO ou numa ocorrência pra corrigir.');
     });
   });
 }
 
-// ---------------- 7. Concluído ----------------
-async function mostrarConcluido(){
-  const totalContados = Object.keys(registrosDaSessao).length;
-  const todosContados = totalContados >= enderecosDaRua.length;
-  if(todosContados){
-    await setDoc(doc(db,'sessoes', sessaoAtualId), { status: 'concluida', concluidoEm: Timestamp.fromDate(nowSaoPaulo()) }, { merge: true });
-  }
+// ---------------- Finalizar / resumo ----------------
+document.getElementById('btn-finalizar-contagem').addEventListener('click', async ()=>{
+  await setDoc(doc(db,'sessoes', sessaoAtualId), { status: 'concluida', concluidoEm: Timestamp.fromDate(nowSaoPaulo()) }, { merge: true });
+  mostrarResumo(true);
+});
 
-  document.querySelector('#screen-concluido h2').textContent = todosContados ? 'Contagem concluída' : 'Resumo parcial';
-  document.querySelector('#screen-concluido .icon-num').textContent = todosContados ? '🎉' : '📊';
+function mostrarResumo(finalizada){
+  document.getElementById('concluido-titulo').textContent = finalizada ? 'Contagem finalizada' : 'Resumo parcial';
+  document.getElementById('concluido-icon').textContent = finalizada ? '🎉' : '📊';
 
   const contagens = { ACERTO:0, FALTA:0, SOBRA:0, OUTROS:0 };
   Object.values(registrosDaSessao).forEach(r=>{
@@ -651,13 +567,14 @@ async function mostrarConcluido(){
   });
 
   document.getElementById('summary-grid').innerHTML = `
-    <div class="summary-item"><div class="num">${enderecosDaRua.length}</div><div class="lbl">Endereços</div></div>
+    <div class="summary-item"><div class="num">${Object.keys(registrosDaSessao).length}</div><div class="lbl">Registrados</div></div>
     <div class="summary-item"><div class="num" style="color:var(--success)">${contagens.ACERTO}</div><div class="lbl">Acertos</div></div>
     <div class="summary-item"><div class="num" style="color:var(--danger)">${contagens.FALTA}</div><div class="lbl">Faltas</div></div>
     <div class="summary-item"><div class="num" style="color:var(--warn)">${contagens.SOBRA}</div><div class="lbl">Sobras</div></div>
   `;
   showScreen('screen-concluido');
 }
+document.getElementById('btn-continuar-editando').addEventListener('click', ()=> showScreen('screen-contagem'));
 document.getElementById('btn-voltar-minha-contagem').addEventListener('click', carregarMinhaContagem);
 </script>
 </body>
