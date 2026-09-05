@@ -778,6 +778,17 @@ async function excluirColaborador(id){
   }
 }
 
+async function excluirDefinitivo(colName, id, nomeExibicao){
+  const confirmar = confirm(`Excluir definitivamente "${nomeExibicao}"?\n\nEssa ação não pode ser desfeita.`);
+  if(!confirmar) return;
+  try{
+    await deleteDoc(doc(db, colName, id));
+    toast('Excluído definitivamente.');
+  }catch(err){
+    toast('Erro ao excluir: ' + err.message, true);
+  }
+}
+
 function editColaborador(id){
   const c = colaboradores.find(x=>x.id===id);
   resetForm('colaborador');
@@ -843,10 +854,15 @@ function renderGrupos(){
       <td><div class="row-actions">
         <button class="icon-btn" data-edit-grupo="${g.id}">✎</button>
         <button class="icon-btn" data-toggle-grupo="${g.id}">${g.ativo!==false?'⏻':'✓'}</button>
+        <button class="icon-btn" data-excluir-grupo="${g.id}" title="Excluir definitivamente">🗑</button>
       </div></td>
     </tr>`).join('');
   tb.querySelectorAll('[data-edit-grupo]').forEach(b=>b.addEventListener('click', ()=>editGrupo(b.dataset.editGrupo)));
   tb.querySelectorAll('[data-toggle-grupo]').forEach(b=>b.addEventListener('click', ()=>toggleAtivo('grupos', b.dataset.toggleGrupo, grupos)));
+  tb.querySelectorAll('[data-excluir-grupo]').forEach(b=>b.addEventListener('click', ()=>{
+    const g = grupos.find(x=>x.id===b.dataset.excluirGrupo);
+    excluirDefinitivo('grupos', g.id, g.nome);
+  }));
 }
 function editGrupo(id){
   const g = grupos.find(x=>x.id===id);
@@ -884,10 +900,15 @@ function renderRuas(){
       <td><div class="row-actions">
         <button class="icon-btn" data-edit-rua="${r.id}">✎</button>
         <button class="icon-btn" data-toggle-rua="${r.id}">${r.ativo!==false?'⏻':'✓'}</button>
+        <button class="icon-btn" data-excluir-rua="${r.id}" title="Excluir definitivamente">🗑</button>
       </div></td>
     </tr>`).join('');
   tb.querySelectorAll('[data-edit-rua]').forEach(b=>b.addEventListener('click', ()=>editRua(b.dataset.editRua)));
   tb.querySelectorAll('[data-toggle-rua]').forEach(b=>b.addEventListener('click', ()=>toggleAtivo('ruas', b.dataset.toggleRua, ruas)));
+  tb.querySelectorAll('[data-excluir-rua]').forEach(b=>b.addEventListener('click', ()=>{
+    const r = ruas.find(x=>x.id===b.dataset.excluirRua);
+    excluirDefinitivo('ruas', r.id, r.codigo);
+  }));
 }
 function editRua(id){
   const r = ruas.find(x=>x.id===id);
@@ -936,10 +957,15 @@ function renderEnderecos(){
       <td><div class="row-actions">
         <button class="icon-btn" data-edit-endereco="${e.id}">✎</button>
         <button class="icon-btn" data-toggle-endereco="${e.id}">${e.ativo!==false?'⏻':'✓'}</button>
+        <button class="icon-btn" data-excluir-endereco="${e.id}" title="Excluir definitivamente">🗑</button>
       </div></td>
     </tr>`).join('');
   tb.querySelectorAll('[data-edit-endereco]').forEach(b=>b.addEventListener('click', ()=>editEndereco(b.dataset.editEndereco)));
   tb.querySelectorAll('[data-toggle-endereco]').forEach(b=>b.addEventListener('click', ()=>toggleAtivo('enderecos', b.dataset.toggleEndereco, enderecos)));
+  tb.querySelectorAll('[data-excluir-endereco]').forEach(b=>b.addEventListener('click', ()=>{
+    const en = enderecos.find(x=>x.id===b.dataset.excluirEndereco);
+    excluirDefinitivo('enderecos', en.id, en.codigo);
+  }));
 }
 function editEndereco(id){
   const e = enderecos.find(x=>x.id===id);
@@ -1035,6 +1061,7 @@ function renderAtribuicoes(){
         <td>${badge(a.ativo !== false)}</td>
         <td><div class="row-actions">
           <button class="icon-btn" data-toggle-atrib="${a.id}">${a.ativo!==false?'⏻':'✓'}</button>
+          <button class="icon-btn" data-excluir-atrib="${a.id}" title="Excluir definitivamente">🗑</button>
         </div></td>
       </tr>`).join('');
     return `
@@ -1044,6 +1071,10 @@ function renderAtribuicoes(){
       </div>`;
   }).join('');
   wrap.querySelectorAll('[data-toggle-atrib]').forEach(b=>b.addEventListener('click', ()=>toggleAtivo('atribuicoes', b.dataset.toggleAtrib, atribuicoes)));
+  wrap.querySelectorAll('[data-excluir-atrib]').forEach(b=>b.addEventListener('click', ()=>{
+    const a = atribuicoes.find(x=>x.id===b.dataset.excluirAtrib);
+    excluirDefinitivo('atribuicoes', a.id, `${ruaCodigo(a.ruaId)} — ${colaboradorNome(a.colaboradorId)}`);
+  }));
 }
 
 // ================= MOVIMENTAÇÕES =================
