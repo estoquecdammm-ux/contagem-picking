@@ -132,7 +132,15 @@
       </div>
       <button class="btn btn-primary" type="submit" id="login-btn">Entrar</button>
       <div class="login-error" id="login-error"></div>
+      <button type="button" id="link-esqueci-senha" style="background:none;border:none;color:var(--muted);font-size:12.5px;margin-top:12px;width:100%;text-align:center;">Esqueci minha senha</button>
     </form>
+
+    <div id="box-esqueci-senha" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+      <p class="hint" style="margin-bottom:10px;">Digite seu usuário — se ele tiver um email cadastrado, enviaremos um link de redefinição.</p>
+      <input type="text" id="reset-usuario" placeholder="Seu usuário" style="margin-bottom:10px;">
+      <button class="btn btn-secondary" id="btn-enviar-reset" style="width:100%;">Enviar email de redefinição</button>
+      <div class="hint" id="reset-msg" style="margin-top:10px;min-height:16px;"></div>
+    </div>
   </div>
 </div>
 
@@ -392,6 +400,21 @@
 
     <hr style="border:none;border-top:1px solid var(--border);margin:22px 0;">
 
+    <form id="form-meu-email">
+      <div class="field">
+        <label>Meu email <span class="hint">(usado para redefinir senha se esquecer)</span></label>
+        <input type="email" id="meu-email" placeholder="email@exemplo.com">
+      </div>
+      <div class="field">
+        <label>Senha atual (pra confirmar)</label>
+        <input type="password" id="senha-atual-email">
+      </div>
+      <div class="login-error" id="email-error" style="min-height:16px;"></div>
+      <button type="submit" class="btn btn-primary" style="width:auto;">Salvar email</button>
+    </form>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:22px 0;">
+
     <form id="form-trocar-senha">
       <div class="field">
         <label>Senha atual *</label>
@@ -424,6 +447,10 @@
         <input type="text" id="novo-admin-usuario" required placeholder="ex: joao ou Luis Henrique">
       </div>
       <div class="field">
+        <label>Email real * <span class="hint">(usado só para redefinir senha, se esquecer)</span></label>
+        <input type="email" id="novo-admin-email" required placeholder="email@exemplo.com">
+      </div>
+      <div class="field">
         <label>Senha inicial *</label>
         <input type="password" id="novo-admin-senha" required minlength="6">
       </div>
@@ -439,7 +466,8 @@
 import { initializeApp, getApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut,
-  EmailAuthProvider, reauthenticateWithCredential, updatePassword, createUserWithEmailAndPassword
+  EmailAuthProvider, reauthenticateWithCredential, updatePassword, createUserWithEmailAndPassword,
+  sendPasswordResetEmail, updateEmail
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, getDoc,
@@ -507,6 +535,31 @@ loginForm.addEventListener('submit', async (e) => {
   }
 });
 
+document.getElementById('link-esqueci-senha').addEventListener('click', ()=>{
+  document.getElementById('box-esqueci-senha').style.display = 'block';
+  document.getElementById('reset-usuario').value = document.getElementById('login-user').value;
+  document.getElementById('reset-msg').textContent = '';
+});
+
+document.getElementById('btn-enviar-reset').addEventListener('click', async ()=>{
+  const usuarioDigitado = document.getElementById('reset-usuario').value.trim().toLowerCase();
+  const msgEl = document.getElementById('reset-msg');
+  msgEl.textContent = 'Enviando...';
+  try{
+    const q = query(collection(db,'adminUsuarios'), where('usuario','==', usuarioDigitado));
+    const snap = await getDocs(q);
+    if(!snap.empty){
+      const emailAlvo = snap.docs[0].data().email;
+      if(emailAlvo && emailAlvo.includes('@') && !emailAlvo.endsWith('.internal')){
+        await sendPasswordResetEmail(auth, emailAlvo);
+      }
+    }
+  }catch(err){
+    // não revela detalhes por segurança — sempre mostra a mesma mensagem genérica abaixo
+  }
+  msgEl.textContent = 'Se o usuário existir e tiver um email cadastrado, você vai receber um link de redefinição em instantes. Confira também a caixa de spam.';
+});
+
 // Cria automaticamente o registro de administrador da conta atual, se ainda não existir
 // (migra o primeiro acesso, que usava usuário/senha fixos criados direto no Firebase)
 async function garantirRegistroAdmin(){
@@ -547,11 +600,40 @@ document.getElementById('btn-minha-conta').addEventListener('click', async ()=>{
   const meuDoc = snap.docs[0];
   meuRegistroAdminId = meuDoc.id;
   document.getElementById('novo-usuario-login').value = meuDoc.data().usuario;
+  document.getElementById('meu-email').value = meuDoc.data().email && meuDoc.data().email.endsWith('.internal') ? '' : (meuDoc.data().email || '');
+  document.getElementById('senha-atual-email').value = '';
+  document.getElementById('email-error').textContent = '';
   document.getElementById('senha-atual').value = '';
   document.getElementById('senha-nova').value = '';
   document.getElementById('senha-nova-confirma').value = '';
   document.getElementById('senha-error').textContent = '';
   document.getElementById('modal-minha-conta').classList.add('visible');
+});
+
+document.getElementById('form-meu-email').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const novoEmail = document.getElementById('meu-email').value.trim().toLowerCase();
+  const senhaAtual = document.getElementById('senha-atual-email').value;
+  const errEl = document.getElementById('email-error');
+  errEl.textContent = '';
+  if(!novoEmail){ errEl.textContent = 'Digite um email válido.'; return; }
+  if(!senhaAtual){ errEl.textContent = 'Digite sua senha atual para confirmar.'; return; }
+  try{
+    const credential = EmailAuthProvider.credential(auth.currentUser.email, senhaAtual);
+    await reauthenticateWithCredential(auth.currentUser, credential);
+    await updateEmail(auth.currentUser, novoEmail);
+    await updateDoc(doc(db,'adminUsuarios', meuRegistroAdminId), { email: novoEmail });
+    toast('Email atualizado com sucesso.');
+    document.getElementById('senha-atual-email').value = '';
+  }catch(err){
+    if(err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential'){
+      errEl.textContent = 'Senha atual incorreta.';
+    } else if(err.code === 'auth/email-already-in-use'){
+      errEl.textContent = 'Esse email já está em uso por outra conta.';
+    } else {
+      errEl.textContent = 'Erro: ' + err.message;
+    }
+  }
 });
 
 document.getElementById('form-usuario-login').addEventListener('submit', async (e)=>{
@@ -1273,6 +1355,7 @@ function abrirDetalheMov(id){
 document.getElementById('btn-administradores').addEventListener('click', async ()=>{
   await renderListaAdministradores();
   document.getElementById('novo-admin-usuario').value = '';
+  document.getElementById('novo-admin-email').value = '';
   document.getElementById('novo-admin-senha').value = '';
   document.getElementById('novo-admin-error').textContent = '';
   document.getElementById('modal-administradores').classList.add('visible');
@@ -1309,6 +1392,7 @@ async function renderListaAdministradores(){
 document.getElementById('form-novo-admin').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const usuario = document.getElementById('novo-admin-usuario').value.trim().toLowerCase();
+  const email = document.getElementById('novo-admin-email').value.trim().toLowerCase();
   const senha = document.getElementById('novo-admin-senha').value;
   const errEl = document.getElementById('novo-admin-error');
   errEl.textContent = '';
@@ -1320,21 +1404,24 @@ document.getElementById('form-novo-admin').addEventListener('submit', async (e)=
     return;
   }
 
-  const usuarioSlug = usuario.replace(/[^a-z0-9.]/g, '') || 'usuario';
-  const emailInterno = `${usuarioSlug}.${Date.now()}@admin.contagempicking.internal`;
   try{
     const authSecundario = getAuthSecundario();
-    const cred = await createUserWithEmailAndPassword(authSecundario, emailInterno, senha);
+    const cred = await createUserWithEmailAndPassword(authSecundario, email, senha);
     await signOut(authSecundario); // encerra a sessão secundária, sem afetar quem já está logado
     await addDoc(collection(db,'adminUsuarios'), {
-      uid: cred.user.uid, usuario, email: emailInterno, ativo: true, criadoEm: new Date().toISOString()
+      uid: cred.user.uid, usuario, email, ativo: true, criadoEm: new Date().toISOString()
     });
     toast(`Administrador "${usuario}" criado.`);
     document.getElementById('novo-admin-usuario').value = '';
+    document.getElementById('novo-admin-email').value = '';
     document.getElementById('novo-admin-senha').value = '';
     renderListaAdministradores();
   }catch(err){
-    errEl.textContent = 'Erro: ' + err.message;
+    if(err.code === 'auth/email-already-in-use'){
+      errEl.textContent = 'Esse email já está sendo usado por outro administrador.';
+    } else {
+      errEl.textContent = 'Erro: ' + err.message;
+    }
   }
 });
 async function toggleAtivo(colName, id, cache){
