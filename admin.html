@@ -154,6 +154,8 @@
       <a href="#" class="nav-item" data-page="atribuicoes">Atribuições</a>
       <a href="#" class="nav-item" data-page="movimentacoes">Movimentações</a>
     </nav>
+    <button class="logout-link" id="btn-administradores" style="margin-right:8px;">Administradores</button>
+    <button class="logout-link" id="btn-minha-conta" style="margin-right:8px;">Minha conta</button>
     <button class="logout-link" id="logout-btn">Sair</button>
   </header>
 
@@ -372,15 +374,74 @@
   </div>
 </div>
 
+<!-- ================= MODAL: MINHA CONTA ================= -->
+<div class="modal-overlay" id="modal-minha-conta">
+  <div class="modal">
+    <h2>Minha conta <button class="modal-close" data-close>&times;</button></h2>
+
+    <p class="hint" style="margin-bottom:16px;">Defina o usuário e a senha que você vai usar para entrar no painel.</p>
+
+    <form id="form-usuario-login">
+      <div class="field">
+        <label>Usuário de login</label>
+        <input type="text" id="novo-usuario-login" placeholder="ex: admin">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:auto;">Salvar usuário</button>
+    </form>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:22px 0;">
+
+    <form id="form-trocar-senha">
+      <div class="field">
+        <label>Senha atual *</label>
+        <input type="password" id="senha-atual" required>
+      </div>
+      <div class="field">
+        <label>Nova senha *</label>
+        <input type="password" id="senha-nova" required minlength="6">
+      </div>
+      <div class="field">
+        <label>Confirmar nova senha *</label>
+        <input type="password" id="senha-nova-confirma" required minlength="6">
+      </div>
+      <div class="login-error" id="senha-error" style="min-height:16px;"></div>
+      <button type="submit" class="btn btn-primary" style="width:auto;">Atualizar senha</button>
+    </form>
+  </div>
+</div>
+
+<!-- ================= MODAL: ADMINISTRADORES ================= -->
+<div class="modal-overlay" id="modal-administradores">
+  <div class="modal" style="width:520px;">
+    <h2>Administradores <button class="modal-close" data-close>&times;</button></h2>
+    <p class="hint" style="margin-bottom:14px;">Pessoas com acesso a este painel. Cada uma tem seu próprio usuário e senha.</p>
+    <div id="lista-administradores" style="margin-bottom:20px;"></div>
+    <hr style="border:none;border-top:1px solid var(--border);margin-bottom:18px;">
+    <form id="form-novo-admin">
+      <div class="field">
+        <label>Novo usuário *</label>
+        <input type="text" id="novo-admin-usuario" required placeholder="ex: joao">
+      </div>
+      <div class="field">
+        <label>Senha inicial *</label>
+        <input type="password" id="novo-admin-senha" required minlength="6">
+      </div>
+      <div class="login-error" id="novo-admin-error" style="min-height:16px;"></div>
+      <button type="submit" class="btn btn-primary" style="width:auto;">+ Adicionar administrador</button>
+    </form>
+  </div>
+</div>
+
 <div id="toast-wrap"></div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { initializeApp, getApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
+  getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut,
+  EmailAuthProvider, reauthenticateWithCredential, updatePassword, createUserWithEmailAndPassword
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
+  getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, getDoc,
   onSnapshot, query, where, getDocs, orderBy, limit
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -396,11 +457,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-
-// ---- Mapa de usuário -> email real (login simplificado) ----
-const USER_MAP = {
-  "admin": "estoquecdam.lojasmm@gmail.com"
-};
 
 // ---------------- Helpers ----------------
 function toast(msg, isError=false){
@@ -426,14 +482,22 @@ const loginForm = document.getElementById('login-form');
 const loginError = document.getElementById('login-error');
 const loginBtn = document.getElementById('login-btn');
 
+// ---------------- Login (múltiplos administradores) ----------------
 loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   loginError.textContent = '';
   loginBtn.disabled = true;
   const userTyped = document.getElementById('login-user').value.trim().toLowerCase();
   const pass = document.getElementById('login-pass').value;
-  const email = USER_MAP[userTyped] || userTyped; // fallback: allow raw email too
   try{
+    const q = query(collection(db,'adminUsuarios'), where('usuario','==', userTyped), where('ativo','==', true));
+    const snap = await getDocs(q);
+    if(snap.empty){
+      loginError.textContent = 'Usuário ou senha inválidos.';
+      loginBtn.disabled = false;
+      return;
+    }
+    const email = snap.docs[0].data().email;
     await signInWithEmailAndPassword(auth, email, pass);
   }catch(err){
     loginError.textContent = 'Usuário ou senha inválidos.';
@@ -442,12 +506,100 @@ loginForm.addEventListener('submit', async (e) => {
   }
 });
 
+// Cria automaticamente o registro de administrador da conta atual, se ainda não existir
+// (migra o primeiro acesso, que usava usuário/senha fixos criados direto no Firebase)
+async function garantirRegistroAdmin(){
+  const q = query(collection(db,'adminUsuarios'), where('uid','==', auth.currentUser.uid));
+  const snap = await getDocs(q);
+  if(snap.empty){
+    const configAntigo = await getDoc(doc(db,'config','login'));
+    const usuarioMigrado = configAntigo.exists() ? configAntigo.data().usuario : 'admin';
+    await addDoc(collection(db,'adminUsuarios'), {
+      uid: auth.currentUser.uid, usuario: usuarioMigrado, email: auth.currentUser.email, ativo: true, criadoEm: new Date().toISOString()
+    });
+  }
+}
+
+// Segunda instância do Firebase, usada só para criar novos administradores
+// sem trocar a sessão de quem já está logado
+function getAuthSecundario(){
+  let appSecundario;
+  try{ appSecundario = getApp('AdminCreation'); }
+  catch(e){ appSecundario = initializeApp(firebaseConfig, 'AdminCreation'); }
+  return getAuth(appSecundario);
+}
+
 document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
 
-onAuthStateChanged(auth, (user) => {
+// ---------------- Minha conta (trocar meu usuário de login e minha senha) ----------------
+let meuRegistroAdminId = null;
+
+document.getElementById('btn-minha-conta').addEventListener('click', async ()=>{
+  const q = query(collection(db,'adminUsuarios'), where('uid','==', auth.currentUser.uid));
+  const snap = await getDocs(q);
+  const meuDoc = snap.docs[0];
+  meuRegistroAdminId = meuDoc.id;
+  document.getElementById('novo-usuario-login').value = meuDoc.data().usuario;
+  document.getElementById('senha-atual').value = '';
+  document.getElementById('senha-nova').value = '';
+  document.getElementById('senha-nova-confirma').value = '';
+  document.getElementById('senha-error').textContent = '';
+  document.getElementById('modal-minha-conta').classList.add('visible');
+});
+
+document.getElementById('form-usuario-login').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const novo = document.getElementById('novo-usuario-login').value.trim().toLowerCase();
+  if(!novo){ toast('Digite um usuário válido.', true); return; }
+  const qOutros = query(collection(db,'adminUsuarios'), where('usuario','==', novo));
+  const snapOutros = await getDocs(qOutros);
+  const conflito = snapOutros.docs.find(d => d.id !== meuRegistroAdminId);
+  if(conflito){ toast('Esse usuário já está em uso por outro administrador.', true); return; }
+  try{
+    await updateDoc(doc(db,'adminUsuarios', meuRegistroAdminId), { usuario: novo });
+    toast('Usuário de login atualizado. Use esse usuário no próximo acesso.');
+  }catch(err){
+    toast('Erro ao salvar: ' + err.message, true);
+  }
+});
+
+document.getElementById('form-trocar-senha').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const senhaAtual = document.getElementById('senha-atual').value;
+  const senhaNova = document.getElementById('senha-nova').value;
+  const senhaConfirma = document.getElementById('senha-nova-confirma').value;
+  const errEl = document.getElementById('senha-error');
+  errEl.textContent = '';
+
+  if(senhaNova !== senhaConfirma){
+    errEl.textContent = 'As senhas novas não são iguais.';
+    return;
+  }
+  if(senhaNova.length < 6){
+    errEl.textContent = 'A nova senha precisa ter pelo menos 6 caracteres.';
+    return;
+  }
+
+  try{
+    const credential = EmailAuthProvider.credential(auth.currentUser.email, senhaAtual);
+    await reauthenticateWithCredential(auth.currentUser, credential);
+    await updatePassword(auth.currentUser, senhaNova);
+    toast('Senha atualizada com sucesso.');
+    document.getElementById('modal-minha-conta').classList.remove('visible');
+  }catch(err){
+    if(err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password'){
+      errEl.textContent = 'Senha atual incorreta.';
+    } else {
+      errEl.textContent = 'Erro: ' + err.message;
+    }
+  }
+});
+
+onAuthStateChanged(auth, async (user) => {
   if(user){
     loginScreen.style.display = 'none';
     appShell.classList.add('visible');
+    await garantirRegistroAdmin();
     startListeners();
   } else {
     loginScreen.style.display = 'flex';
@@ -1065,7 +1217,73 @@ function abrirDetalheMov(id){
   openModal('detalhe-mov');
 }
 
-// ---------------- Generic toggle ativo/inativo ----------------
+// ---------------- Administradores (múltiplas contas) ----------------
+document.getElementById('btn-administradores').addEventListener('click', async ()=>{
+  await renderListaAdministradores();
+  document.getElementById('novo-admin-usuario').value = '';
+  document.getElementById('novo-admin-senha').value = '';
+  document.getElementById('novo-admin-error').textContent = '';
+  document.getElementById('modal-administradores').classList.add('visible');
+});
+
+async function renderListaAdministradores(){
+  const snap = await getDocs(collection(db,'adminUsuarios'));
+  const admins = snap.docs.map(d=>({id:d.id, ...d.data()}));
+  const list = document.getElementById('lista-administradores');
+  if(admins.length === 0){
+    list.innerHTML = '<div class="hint">Nenhum administrador cadastrado ainda.</div>';
+    return;
+  }
+  list.innerHTML = admins.map(a => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div>
+        <strong>${a.usuario}</strong>
+        ${a.uid === auth.currentUser.uid ? ' <span class="hint">(você)</span>' : ''}
+        <div class="hint">${a.ativo !== false ? 'Ativo' : 'Desativado'}</div>
+      </div>
+      ${a.uid !== auth.currentUser.uid ? `<button class="icon-btn" data-toggle-admin="${a.id}">${a.ativo !== false ? '⏻' : '✓'}</button>` : ''}
+    </div>
+  `).join('');
+  list.querySelectorAll('[data-toggle-admin]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const admin = admins.find(a=>a.id===b.dataset.toggleAdmin);
+      await updateDoc(doc(db,'adminUsuarios', admin.id), { ativo: !(admin.ativo !== false) });
+      toast('Status atualizado.');
+      renderListaAdministradores();
+    });
+  });
+}
+
+document.getElementById('form-novo-admin').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const usuario = document.getElementById('novo-admin-usuario').value.trim().toLowerCase();
+  const senha = document.getElementById('novo-admin-senha').value;
+  const errEl = document.getElementById('novo-admin-error');
+  errEl.textContent = '';
+
+  const qExiste = query(collection(db,'adminUsuarios'), where('usuario','==', usuario));
+  const snapExiste = await getDocs(qExiste);
+  if(!snapExiste.empty){
+    errEl.textContent = 'Esse usuário já existe.';
+    return;
+  }
+
+  const emailInterno = `${usuario}.${Date.now()}@admin.contagempicking.internal`;
+  try{
+    const authSecundario = getAuthSecundario();
+    const cred = await createUserWithEmailAndPassword(authSecundario, emailInterno, senha);
+    await signOut(authSecundario); // encerra a sessão secundária, sem afetar quem já está logado
+    await addDoc(collection(db,'adminUsuarios'), {
+      uid: cred.user.uid, usuario, email: emailInterno, ativo: true, criadoEm: new Date().toISOString()
+    });
+    toast(`Administrador "${usuario}" criado.`);
+    document.getElementById('novo-admin-usuario').value = '';
+    document.getElementById('novo-admin-senha').value = '';
+    renderListaAdministradores();
+  }catch(err){
+    errEl.textContent = 'Erro: ' + err.message;
+  }
+});
 async function toggleAtivo(colName, id, cache){
   const item = cache.find(x=>x.id===id);
   try{
