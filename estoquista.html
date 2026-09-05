@@ -316,31 +316,43 @@ document.getElementById('btn-confirmar-matricula').addEventListener('click', asy
 async function carregarMinhaContagem(){
   document.getElementById('minha-contagem-nome').textContent = 'Olá, ' + colaborador.nome.split(' ')[0] + '!';
 
-  const qAtrib = query(collection(db,'atribuicoes'), where('colaboradorId','==', colaborador.id), where('ativo','==', true));
-  const snapAtrib = await getDocs(qAtrib);
-  if(snapAtrib.empty){
-    document.getElementById('sem-atribuicao').style.display = 'block';
-    document.getElementById('ruas-list').innerHTML = '';
-    showScreen('screen-minha-contagem');
-    return;
-  }
-  document.getElementById('sem-atribuicao').style.display = 'none';
-
   const ruasSnap = await getDocs(collection(db,'ruas'));
   const gruposSnap = await getDocs(collection(db,'grupos'));
   const ruasMap = Object.fromEntries(ruasSnap.docs.map(d=>[d.id, d.data()]));
   const gruposMap = Object.fromEntries(gruposSnap.docs.map(d=>[d.id, d.data()]));
 
-  ruasAtribuidas = snapAtrib.docs
-    .map(d=>d.data())
-    .filter(a => ruasMap[a.ruaId] && ruasMap[a.ruaId].ativo !== false)
-    .map(a => ({
-      ruaId: a.ruaId,
-      ruaCodigo: ruasMap[a.ruaId].codigo,
-      grupoId: a.grupoId,
-      grupoNome: gruposMap[a.grupoId] ? gruposMap[a.grupoId].nome : '—'
-    }))
-    .sort(compararRuas);
+  if(colaborador.universal === true){
+    ruasAtribuidas = Object.entries(ruasMap)
+      .filter(([id, r]) => r.ativo !== false)
+      .map(([id, r]) => ({
+        ruaId: id,
+        ruaCodigo: r.codigo,
+        grupoId: r.grupoId,
+        grupoNome: gruposMap[r.grupoId] ? gruposMap[r.grupoId].nome : '—'
+      }))
+      .sort(compararRuas);
+    document.getElementById('sem-atribuicao').style.display = 'none';
+  } else {
+    const qAtrib = query(collection(db,'atribuicoes'), where('colaboradorId','==', colaborador.id), where('ativo','==', true));
+    const snapAtrib = await getDocs(qAtrib);
+    if(snapAtrib.empty){
+      document.getElementById('sem-atribuicao').style.display = 'block';
+      document.getElementById('ruas-list').innerHTML = '';
+      showScreen('screen-minha-contagem');
+      return;
+    }
+    document.getElementById('sem-atribuicao').style.display = 'none';
+    ruasAtribuidas = snapAtrib.docs
+      .map(d=>d.data())
+      .filter(a => ruasMap[a.ruaId] && ruasMap[a.ruaId].ativo !== false)
+      .map(a => ({
+        ruaId: a.ruaId,
+        ruaCodigo: ruasMap[a.ruaId].codigo,
+        grupoId: a.grupoId,
+        grupoNome: gruposMap[a.grupoId] ? gruposMap[a.grupoId].nome : '—'
+      }))
+      .sort(compararRuas);
+  }
 
   const list = document.getElementById('ruas-list');
   list.innerHTML = '';

@@ -81,6 +81,7 @@
   .icon-btn:hover{color:var(--text);border-color:var(--muted);}
   .icon-btn svg{width:14px;height:14px;}
   .empty-state{padding:50px 20px;text-align:center;color:var(--muted);}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px;}
 
   .dash-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
   .dash-kpi{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;text-align:center;}
@@ -174,6 +175,7 @@
       <a href="#" class="nav-item" data-page="enderecos">Endereços</a>
       <a href="#" class="nav-item" data-page="atribuicoes">Atribuições</a>
       <a href="#" class="nav-item" data-page="movimentacoes">Movimentações</a>
+      <a href="#" class="nav-item" data-page="confronto-senior">Confronto Senior</a>
     </nav>
     <button class="logout-link" id="btn-administradores" style="margin-right:8px;">Administradores</button>
     <button class="logout-link" id="btn-minha-conta" style="margin-right:8px;">Minha conta</button>
@@ -273,6 +275,32 @@
         <tbody id="tbody-movimentacoes"></tbody>
       </table>
     </section>
+
+    <!-- CONFRONTO SENIOR -->
+    <section id="page-confronto-senior" class="page" style="display:none">
+      <div class="page-header">
+        <div><h1>Confronto Senior</h1><p>Cruza as movimentações do app com o relatório de movimentação por endereço do Senior</p></div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <label style="display:block;margin-bottom:8px;">Relatório do Senior (Excel ou CSV)</label>
+        <input type="file" id="cf-arquivo-senior" accept=".xlsx,.xls,.csv">
+        <div class="hint" id="cf-status-arquivo" style="margin-top:10px;">Nenhum arquivo carregado ainda.</div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <select id="cf-filtro-colaborador" style="max-width:200px;"><option value="">Todos colaboradores</option></select>
+        <input type="date" id="cf-filtro-data-inicial" title="Data inicial" style="max-width:170px;">
+        <input type="date" id="cf-filtro-data-final" title="Data final" style="max-width:170px;">
+      </div>
+
+      <div class="dash-grid" id="cf-kpis" style="display:none;"></div>
+
+      <table id="cf-tabela" style="display:none;">
+        <thead><tr><th>Data</th><th>Colaborador</th><th>Matrícula</th><th>Rua</th><th>Endereço</th><th>Tipo</th><th>Status Senior</th></tr></thead>
+        <tbody id="tbody-confronto-senior"></tbody>
+      </table>
+    </section>
   </main>
 </div>
 
@@ -285,6 +313,10 @@
       <div class="field"><label>Nome *</label><input type="text" id="colaborador-nome" required></div>
       <div class="field"><label>Matrícula *</label><input type="text" id="colaborador-matricula" required></div>
       <div class="field"><label>Grupo</label><select id="colaborador-grupo"><option value="">—</option></select></div>
+      <div class="toggle-row">
+        <label class="switch"><input type="checkbox" id="colaborador-universal"><span class="slider"></span></label>
+        <span>Universal (conta qualquer rua, sem precisar de atribuição específica)</span>
+      </div>
       <div class="toggle-row">
         <label class="switch"><input type="checkbox" id="colaborador-ativo" checked><span class="slider"></span></label>
         <span>Ativo</span>
@@ -483,6 +515,7 @@
 
 <div id="toast-wrap"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script type="module">
 import { initializeApp, getApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
@@ -725,6 +758,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
     item.classList.add('active');
     document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
     document.getElementById('page-' + item.dataset.page).style.display = 'block';
+    if(item.dataset.page === 'confronto-senior') renderConfrontoSenior();
   });
 });
 document.querySelector('.nav-item[data-page="colaboradores"]').classList.add('active');
@@ -749,6 +783,7 @@ function resetForm(type){
     document.getElementById('form-colaborador').reset();
     document.getElementById('colaborador-id').value = '';
     document.getElementById('colaborador-ativo').checked = true;
+    document.getElementById('colaborador-universal').checked = false;
     document.getElementById('colaborador-link-field').style.display = 'none';
     document.querySelector('#modal-colaborador h2').firstChild.textContent = 'Novo colaborador ';
   }
@@ -873,7 +908,7 @@ function renderColaboradores(){
     return `<tr>
       <td>${c.nome}</td>
       <td class="mono">${c.matricula || '—'}</td>
-      <td>${grupoNome(c.grupoId)}</td>
+      <td>${c.universal ? '<span class="badge badge-on">Universal</span>' : grupoNome(c.grupoId)}</td>
       <td>${badge(c.ativo !== false)}</td>
       <td>${link ? `<span class="code-chip" title="${link}">${link.slice(0,28)}…</span>` : '<span class="hint">Gerar ao editar</span>'}</td>
       <td><div class="row-actions">
@@ -918,6 +953,7 @@ function editColaborador(id){
   document.getElementById('colaborador-nome').value = c.nome || '';
   document.getElementById('colaborador-matricula').value = c.matricula || '';
   document.getElementById('colaborador-grupo').value = c.grupoId || '';
+  document.getElementById('colaborador-universal').checked = c.universal === true;
   document.getElementById('colaborador-ativo').checked = c.ativo !== false;
   document.querySelector('#modal-colaborador h2').firstChild.textContent = 'Editar colaborador ';
   if(c.accessToken){
@@ -947,6 +983,7 @@ document.getElementById('form-colaborador').addEventListener('submit', async (e)
     nome: document.getElementById('colaborador-nome').value.trim(),
     matricula: document.getElementById('colaborador-matricula').value.trim(),
     grupoId: document.getElementById('colaborador-grupo').value || null,
+    universal: document.getElementById('colaborador-universal').checked,
     ativo: document.getElementById('colaborador-ativo').checked
   };
   try{
@@ -1516,6 +1553,119 @@ async function toggleAtivo(colName, id, cache){
     await updateDoc(doc(db, colName, id), { ativo: !(item.ativo !== false) });
     toast('Status atualizado.');
   }catch(err){ toast('Erro: ' + err.message, true); }
+}
+
+// ================= CONFRONTO SENIOR =================
+let seniorRows = null;
+
+function excelSerialToDate(serial){
+  if(serial === undefined || serial === null || serial === '' || isNaN(serial)) return null;
+  const utc_days = Math.floor(Number(serial) - 25569);
+  const utc_value = utc_days * 86400;
+  return new Date(utc_value * 1000);
+}
+
+function dataParaYMD(jsDate){
+  if(!jsDate) return null;
+  const y = jsDate.getUTCFullYear(), m = String(jsDate.getUTCMonth()+1).padStart(2,'0'), d = String(jsDate.getUTCDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
+
+document.getElementById('cf-arquivo-senior').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('cf-status-arquivo');
+  statusEl.textContent = 'Lendo arquivo...';
+  const reader = new FileReader();
+  const isCsv = file.name.toLowerCase().endsWith('.csv');
+  reader.onload = (evt)=>{
+    try{
+      const workbook = isCsv
+        ? XLSX.read(evt.target.result, { type: 'string' })
+        : XLSX.read(evt.target.result, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: '' });
+      seniorRows = rows.map(r => ({
+        matricula: String(r['Código Funcionário'] ?? '').trim(),
+        endereco: String(r['Endereço'] ?? '').trim().toUpperCase(),
+        codigoProduto: String(r['Código Produto'] ?? '').trim(),
+        qtdeMovimentacao: r['Qtde Movimentação'],
+        dataYMD: dataParaYMD(excelSerialToDate(r['Data de Cadastro'])),
+        motivo: r['Descrição Aplicação'] || ''
+      })).filter(r => r.matricula && r.endereco);
+      statusEl.textContent = `✅ Arquivo processado: ${seniorRows.length} linhas válidas encontradas.`;
+      renderConfrontoSenior();
+    }catch(err){
+      statusEl.textContent = 'Erro ao ler o arquivo: ' + err.message;
+    }
+  };
+  if(isCsv) reader.readAsText(file, 'utf-8');
+  else reader.readAsArrayBuffer(file);
+});
+
+['cf-filtro-colaborador','cf-filtro-data-inicial','cf-filtro-data-final'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', renderConfrontoSenior);
+});
+
+function renderConfrontoSenior(){
+  fillSelect('cf-filtro-colaborador', colaboradores, 'nome');
+
+  if(!seniorRows){
+    document.getElementById('cf-kpis').style.display = 'none';
+    document.getElementById('cf-tabela').style.display = 'none';
+    return;
+  }
+
+  const fColab = document.getElementById('cf-filtro-colaborador').value;
+  const fDataInicial = document.getElementById('cf-filtro-data-inicial').value;
+  const fDataFinal = document.getElementById('cf-filtro-data-final').value;
+
+  let dados = registros.filter(r=>{
+    if(fColab && r.colaboradorId !== fColab) return false;
+    if(fDataInicial && r.data < fDataInicial) return false;
+    if(fDataFinal && r.data > fDataFinal) return false;
+    return true;
+  });
+
+  const resultados = dados.map(r=>{
+    const colab = colaboradores.find(c=>c.id === r.colaboradorId);
+    const matricula = colab ? String(colab.matricula).trim() : null;
+    const enderecoNorm = (r.enderecoCodigo || '').trim().toUpperCase();
+    const encontrado = matricula ? seniorRows.some(sr =>
+      sr.matricula === matricula && sr.endereco === enderecoNorm && sr.dataYMD === r.data
+    ) : false;
+    return { ...r, matriculaResolvida: matricula, confereSenior: encontrado };
+  }).sort((a,b)=> (b.data||'').localeCompare(a.data||''));
+
+  const totalConfere = resultados.filter(r=>r.confereSenior).length;
+  const totalNaoEncontrado = resultados.length - totalConfere;
+
+  document.getElementById('cf-kpis').style.display = 'grid';
+  document.getElementById('cf-kpis').innerHTML = `
+    <div class="dash-kpi"><div class="num">${resultados.length}</div><div class="lbl">Movimentações no período</div></div>
+    <div class="dash-kpi"><div class="num" style="color:var(--success)">${totalConfere}</div><div class="lbl">Conferem no Senior</div></div>
+    <div class="dash-kpi"><div class="num" style="color:var(--danger)">${totalNaoEncontrado}</div><div class="lbl">Não encontradas no Senior</div></div>
+    <div class="dash-kpi"><div class="num">${seniorRows.length}</div><div class="lbl">Linhas do arquivo Senior</div></div>
+  `;
+
+  document.getElementById('cf-tabela').style.display = 'table';
+  const tb = document.getElementById('tbody-confronto-senior');
+  if(resultados.length === 0){
+    tb.innerHTML = `<tr><td colspan="7"><div class="empty-state">Nenhuma movimentação encontrada com esses filtros.</div></td></tr>`;
+    return;
+  }
+  tb.innerHTML = resultados.map(r=>`
+    <tr>
+      <td class="mono">${r.data}</td>
+      <td>${r.colaboradorNome || colaboradorNome(r.colaboradorId) || 'Colaborador removido'}</td>
+      <td class="mono">${r.matriculaResolvida || '—'}</td>
+      <td class="mono">${ruaCodigo(r.ruaId)}</td>
+      <td class="mono">${r.enderecoCodigo || '—'}</td>
+      <td><span class="badge ${r.tipo === 'ACERTO' ? 'badge-on' : 'badge-off'}">${r.tipo}</span></td>
+      <td>${r.confereSenior
+        ? '<span class="badge badge-on">✅ Confere</span>'
+        : '<span class="badge badge-off">⚠️ Não encontrado</span>'}</td>
+    </tr>`).join('');
 }
 </script>
 </body>
