@@ -237,7 +237,7 @@
         <button class="btn btn-new" id="btn-exportar-word" style="width:auto;">📄 Exportar para Word</button>
       </div>
       <table>
-        <thead><tr><th>Data/Hora</th><th>Colaborador</th><th>Rua</th><th>Endereço</th><th>Tipo</th><th></th></tr></thead>
+        <thead><tr><th>Data/Hora</th><th>Colaborador</th><th>Rua</th><th>Endereço</th><th>Tipo</th><th>Qtd</th><th></th></tr></thead>
         <tbody id="tbody-movimentacoes"></tbody>
       </table>
     </section>
@@ -937,6 +937,7 @@ function renderMovimentacoes(){
       <td class="mono">${ruaCodigo(r.ruaId)}</td>
       <td class="mono">${r.enderecoCodigo || '—'}</td>
       <td><span class="badge ${r.tipo === 'ACERTO' ? 'badge-on' : 'badge-off'}">${r.tipo}</span></td>
+      <td class="mono">${r.quantidade != null ? (r.quantidade > 0 ? '+' : '') + r.quantidade : '—'}</td>
       <td><button class="icon-btn" data-detalhe="${r.id}" title="Ver detalhe">👁</button></td>
     </tr>`).join('');
 
@@ -972,6 +973,7 @@ document.getElementById('btn-exportar-word').addEventListener('click', ()=>{
         <td>${ruaCodigo(r.ruaId)}</td>
         <td>${r.enderecoCodigo || '—'}</td>
         <td>${r.tipo}</td>
+        <td>${r.quantidade != null ? (r.quantidade > 0 ? '+' : '') + r.quantidade : '—'}</td>
         <td>${r.observacao || '—'}</td>
         <td>${r.codigoProduto || '—'}</td>
       </tr>`;
@@ -980,7 +982,7 @@ document.getElementById('btn-exportar-word').addEventListener('click', ()=>{
       const base64Data = r.foto.split(',')[1] || '';
       linhas += `
       <tr>
-        <td colspan="7" style="text-align:center;padding:10px;">
+        <td colspan="8" style="text-align:center;padding:10px;">
           <img src="cid:${cid}" style="max-width:380px;"><br>
           <span style="font-size:8pt;color:#666;">Foto — ${r.enderecoCodigo || ''} (${r.tipo})</span>
         </td>
@@ -1010,7 +1012,7 @@ document.getElementById('btn-exportar-word').addEventListener('click', ()=>{
       <p>Total de registros: ${filtrados.length}</p>
       <table>
         <tr>
-          <th>Data/Hora</th><th>Colaborador</th><th>Rua</th><th>Endereço</th><th>Tipo</th><th>Observação</th><th>Código Produto</th>
+          <th>Data/Hora</th><th>Colaborador</th><th>Rua</th><th>Endereço</th><th>Tipo</th><th>Qtd</th><th>Observação</th><th>Código Produto</th>
         </tr>
         ${linhas}
       </table>
@@ -1053,7 +1055,7 @@ function abrirDetalheMov(id){
   document.getElementById('detalhe-mov-content').innerHTML = `
     <p><strong>Colaborador:</strong> ${r.colaboradorNome || colaboradorNome(r.colaboradorId) || 'Colaborador removido'}</p>
     <p><strong>Rua:</strong> ${ruaCodigo(r.ruaId)} &nbsp; <strong>Endereço:</strong> ${r.enderecoCodigo || '—'}</p>
-    <p><strong>Tipo:</strong> ${r.tipo}</p>
+    <p><strong>Tipo:</strong> ${r.tipo}${r.quantidade != null ? ' (' + (r.quantidade > 0 ? '+' : '') + r.quantidade + ')' : ''}</p>
     <p><strong>Data/Hora:</strong> ${formatTimestamp(r.timestamp)} (${r.diaSemana || ''})</p>
     <p><strong>Observação:</strong> ${r.observacao || '—'}</p>
     <p><strong>Código do produto:</strong> ${r.codigoProduto || '—'}</p>

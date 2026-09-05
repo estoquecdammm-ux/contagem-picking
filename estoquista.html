@@ -73,6 +73,10 @@
   .photo-preview{width:100%;border-radius:10px;margin-top:8px;display:none;}
   .photo-btn{background:var(--panel-2);border:1px dashed var(--border);color:var(--muted);padding:14px;border-radius:10px;text-align:center;font-size:13.5px;font-weight:600;}
 
+  .qty-chips{display:flex;gap:8px;flex-wrap:wrap;}
+  .qty-chip{background:var(--panel-2);border:1px solid var(--border);color:var(--text);padding:10px 16px;border-radius:10px;font-weight:700;font-size:14px;font-family:'JetBrains Mono',monospace;}
+  .qty-chip.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+
   /* Resumo / concluído */
   .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0;}
   .summary-item{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;}
@@ -180,6 +184,11 @@
   <div class="modal-sheet">
     <span class="tipo-chip" id="modal-tipo-chip">TIPO</span>
     <h2 id="modal-codigo-titulo">Registrar ocorrência</h2>
+    <div class="field" id="quantidade-field" style="display:none;margin-top:16px;">
+      <label>Quantidade</label>
+      <div class="qty-chips" id="qty-chips-list"></div>
+      <input type="number" id="modal-quantidade-manual" placeholder="Outro valor (digite só o número)" style="margin-top:8px;" min="1">
+    </div>
     <div class="field" style="margin-top:16px;">
       <label>Observação (opcional)</label>
       <textarea id="modal-observacao" rows="2"></textarea>
@@ -419,6 +428,8 @@ document.querySelectorAll('.btn-ocorrencia').forEach(btn=>{
 
 // ---------------- Modal ocorrência ----------------
 let fotoBase64Atual = null;
+let quantidadeSelecionada = null;
+
 function abrirModalOcorrencia(tipo){
   const codigo = document.getElementById('input-endereco-atual').value.trim();
   if(!codigo){ toast('Digite o código do endereço primeiro.', true); return; }
@@ -429,9 +440,38 @@ function abrirModalOcorrencia(tipo){
   document.getElementById('modal-codigo-produto').value = '';
   document.getElementById('modal-foto-preview').style.display = 'none';
   document.getElementById('modal-foto-input').value = '';
+  document.getElementById('modal-quantidade-manual').value = '';
   fotoBase64Atual = null;
+  quantidadeSelecionada = null;
+
+  const qtyField = document.getElementById('quantidade-field');
+  const qtyList = document.getElementById('qty-chips-list');
+  if(tipo === 'FALTA' || tipo === 'SOBRA'){
+    qtyField.style.display = 'block';
+    const sinal = tipo === 'FALTA' ? -1 : 1;
+    const prefixo = tipo === 'FALTA' ? '-' : '+';
+    qtyList.innerHTML = [1,2,3,4,5].map(n => `<button type="button" class="qty-chip" data-valor="${n * sinal}">${prefixo}${n}</button>`).join('');
+    qtyList.querySelectorAll('.qty-chip').forEach(chip=>{
+      chip.addEventListener('click', ()=>{
+        quantidadeSelecionada = Number(chip.dataset.valor);
+        document.getElementById('modal-quantidade-manual').value = '';
+        qtyList.querySelectorAll('.qty-chip').forEach(c=>c.classList.remove('active'));
+        chip.classList.add('active');
+      });
+    });
+  } else {
+    qtyField.style.display = 'none';
+  }
+
   document.getElementById('modal-ocorrencia').classList.add('visible');
 }
+document.getElementById('modal-quantidade-manual').addEventListener('input', (e)=>{
+  const tipo = document.getElementById('modal-tipo-chip').dataset.tipo;
+  const sinal = tipo === 'FALTA' ? -1 : 1;
+  const val = parseInt(e.target.value, 10);
+  quantidadeSelecionada = isNaN(val) ? null : val * sinal;
+  document.getElementById('qty-chips-list').querySelectorAll('.qty-chip').forEach(c=>c.classList.remove('active'));
+});
 document.getElementById('btn-cancelar-ocorrencia').addEventListener('click', ()=>{
   document.getElementById('modal-ocorrencia').classList.remove('visible');
 });
@@ -464,7 +504,8 @@ document.getElementById('btn-salvar-ocorrencia').addEventListener('click', async
   await salvarRegistro(tipo, {
     observacao: document.getElementById('modal-observacao').value.trim(),
     codigoProduto: document.getElementById('modal-codigo-produto').value.trim(),
-    foto: fotoBase64Atual
+    foto: fotoBase64Atual,
+    quantidade: quantidadeSelecionada
   });
   document.getElementById('modal-ocorrencia').classList.remove('visible');
 });
@@ -483,6 +524,7 @@ async function salvarRegistro(tipo, extras){
     observacao: extras.observacao || '',
     codigoProduto: extras.codigoProduto || '',
     foto: extras.foto || null,
+    quantidade: (extras.quantidade === undefined ? null : extras.quantidade),
     timestamp: Timestamp.fromDate(now),
     data: todayStr(),
     diaSemana: DIAS[now.getDay()],
@@ -538,7 +580,7 @@ function renderListaSessao(){
   list.innerHTML = itens.map(r=>`
     <div class="review-item" data-codigo="${r.enderecoCodigo}">
       <span class="code">${r.enderecoCodigo}</span>
-      <span class="tipo ${tipoClasse(r.tipo)}">${r.tipo}${r.historico && r.historico.length ? ' ✎' : ''}</span>
+      <span class="tipo ${tipoClasse(r.tipo)}">${r.tipo}${r.quantidade != null ? ' (' + (r.quantidade > 0 ? '+' : '') + r.quantidade + ')' : ''}${r.historico && r.historico.length ? ' ✎' : ''}</span>
     </div>`).join('');
   list.querySelectorAll('.review-item').forEach(item=>{
     item.addEventListener('click', ()=>{
