@@ -166,6 +166,10 @@
     <p class="hint" style="margin-bottom:18px;">Por segurança, você precisa criar uma senha própria antes de continuar. Ela deve ter: mínimo 8 caracteres, 1 letra maiúscula, 1 número e 1 caractere especial (ex: @, #, !).</p>
     <form id="form-trocar-senha-obrigatoria">
       <div class="field">
+        <label>Seu email real <span class="hint">(usado pra redefinir senha se esquecer)</span></label>
+        <input type="email" id="obrigatoria-email" required placeholder="email@exemplo.com">
+      </div>
+      <div class="field">
         <label>Nova senha</label>
         <input type="password" id="obrigatoria-senha-nova" required>
       </div>
@@ -523,11 +527,7 @@
         <label>Novo usuário *</label>
         <input type="text" id="novo-admin-usuario" required placeholder="ex: joao ou Luis Henrique">
       </div>
-      <div class="field">
-        <label>Email real * <span class="hint">(usado só para redefinir senha, se esquecer)</span></label>
-        <input type="email" id="novo-admin-email" required placeholder="email@exemplo.com">
-      </div>
-      <p class="hint" style="margin-bottom:14px;">O sistema gera uma senha padrão temporária. No primeiro login, essa pessoa será obrigada a trocar por uma senha própria.</p>
+      <p class="hint" style="margin-bottom:14px;">O sistema gera uma senha padrão temporária. No primeiro login, essa pessoa vai definir o email real e trocar a senha.</p>
       <div class="login-error" id="novo-admin-error" style="min-height:16px;"></div>
       <div id="novo-admin-sucesso" style="display:none;background:rgba(47,163,107,.1);border:1px solid var(--success);border-radius:10px;padding:14px;margin-bottom:14px;">
         <p style="margin:0 0 8px;font-weight:600;">Administrador criado! Repasse esses dados de acesso:</p>
@@ -1598,6 +1598,7 @@ function senhaForte(s){
 
 document.getElementById('form-trocar-senha-obrigatoria').addEventListener('submit', async (e)=>{
   e.preventDefault();
+  const novoEmail = document.getElementById('obrigatoria-email').value.trim().toLowerCase();
   const nova = document.getElementById('obrigatoria-senha-nova').value;
   const confirma = document.getElementById('obrigatoria-senha-confirma').value;
   const errEl = document.getElementById('obrigatoria-senha-error');
@@ -1610,15 +1611,20 @@ document.getElementById('form-trocar-senha-obrigatoria').addEventListener('submi
   }
 
   try{
+    await updateEmail(auth.currentUser, novoEmail);
     await updatePassword(auth.currentUser, nova);
-    await updateDoc(doc(db,'adminUsuarios', meuRegistroAdminId), { senhaTemporaria: false });
+    await updateDoc(doc(db,'adminUsuarios', meuRegistroAdminId), { senhaTemporaria: false, email: novoEmail });
     precisaTrocarSenha = false;
     document.getElementById('screen-trocar-senha-obrigatoria').style.display = 'none';
     appShell.classList.add('visible');
     startListeners();
-    toast('Senha definida com sucesso!');
+    toast('Email e senha definidos com sucesso!');
   }catch(err){
-    errEl.textContent = 'Erro: ' + err.message + ' (pode ser necessário sair e entrar de novo com a senha temporária antes de tentar de novo)';
+    if(err.code === 'auth/email-already-in-use'){
+      errEl.textContent = 'Esse email já está em uso por outra conta.';
+    } else {
+      errEl.textContent = 'Erro: ' + err.message + ' (pode ser necessário sair e entrar de novo com a senha temporária antes de tentar de novo)';
+    }
   }
 });
 
@@ -1631,7 +1637,6 @@ document.getElementById('btn-copiar-senha-gerada').addEventListener('click', ()=
 document.getElementById('btn-administradores').addEventListener('click', async ()=>{
   await renderListaAdministradores();
   document.getElementById('novo-admin-usuario').value = '';
-  document.getElementById('novo-admin-email').value = '';
   document.getElementById('novo-admin-error').textContent = '';
   document.getElementById('novo-admin-sucesso').style.display = 'none';
   document.getElementById('modal-administradores').classList.add('visible');
@@ -1681,7 +1686,6 @@ async function renderListaAdministradores(){
 document.getElementById('form-novo-admin').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const usuario = document.getElementById('novo-admin-usuario').value.trim().toLowerCase();
-  const email = document.getElementById('novo-admin-email').value.trim().toLowerCase();
   const errEl = document.getElementById('novo-admin-error');
   errEl.textContent = '';
   document.getElementById('novo-admin-sucesso').style.display = 'none';
@@ -1694,25 +1698,22 @@ document.getElementById('form-novo-admin').addEventListener('submit', async (e)=
   }
 
   const senha = gerarSenhaTemporaria();
+  const usuarioSlug = usuario.replace(/[^a-z0-9.]/g, '') || 'usuario';
+  const emailProvisorio = `${usuarioSlug}.${Date.now()}@admin.contagempicking.internal`;
 
   try{
     const authSecundario = getAuthSecundario();
-    const cred = await createUserWithEmailAndPassword(authSecundario, email, senha);
+    const cred = await createUserWithEmailAndPassword(authSecundario, emailProvisorio, senha);
     await signOut(authSecundario); // encerra a sessão secundária, sem afetar quem já está logado
     await addDoc(collection(db,'adminUsuarios'), {
-      uid: cred.user.uid, usuario, email, ativo: true, criadoEm: new Date().toISOString(), senhaTemporaria: true
+      uid: cred.user.uid, usuario, email: emailProvisorio, ativo: true, criadoEm: new Date().toISOString(), senhaTemporaria: true
     });
     document.getElementById('novo-admin-senha-gerada').value = `Usuário: ${usuario}  |  Senha: ${senha}`;
     document.getElementById('novo-admin-sucesso').style.display = 'block';
     document.getElementById('novo-admin-usuario').value = '';
-    document.getElementById('novo-admin-email').value = '';
     renderListaAdministradores();
   }catch(err){
-    if(err.code === 'auth/email-already-in-use'){
-      errEl.textContent = 'Esse email já está sendo usado por outro administrador.';
-    } else {
-      errEl.textContent = 'Erro: ' + err.message;
-    }
+    errEl.textContent = 'Erro: ' + err.message;
   }
 });
 async function toggleAtivo(colName, id, cache){
