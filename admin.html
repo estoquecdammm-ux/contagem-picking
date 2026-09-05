@@ -177,6 +177,7 @@
       <a href="#" class="nav-item" data-page="movimentacoes">Movimentações</a>
       <a href="#" class="nav-item" data-page="confronto-senior">Confronto Senior</a>
     </nav>
+    <button class="logout-link" id="btn-zona-perigo" style="margin-right:8px;display:none;color:var(--danger);border-color:var(--danger);">⚠️ Zona de perigo</button>
     <button class="logout-link" id="btn-administradores" style="margin-right:8px;">Administradores</button>
     <button class="logout-link" id="btn-minha-conta" style="margin-right:8px;">Minha conta</button>
     <button class="logout-link" id="logout-btn">Sair</button>
@@ -515,6 +516,23 @@
   </div>
 </div>
 
+<!-- ================= MODAL: ZONA DE PERIGO ================= -->
+<div class="modal-overlay" id="modal-zona-perigo">
+  <div class="modal">
+    <h2 style="color:var(--danger);">⚠️ Zona de perigo <button class="modal-close" data-close>&times;</button></h2>
+    <p class="hint" style="margin-bottom:14px;">Isso apaga <strong>permanentemente</strong> todos os Colaboradores, Grupos, Ruas, Endereços, Atribuições, Sessões e Movimentações do sistema. Use só pra limpar dados de teste antes de começar de verdade. As contas de Administradores NÃO são apagadas.</p>
+    <div class="field">
+      <label>Digite <strong>APAGAR TUDO</strong> para confirmar</label>
+      <input type="text" id="confirmacao-apagar-tudo" placeholder="APAGAR TUDO">
+    </div>
+    <div class="login-error" id="apagar-tudo-status" style="min-height:16px;"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" data-close>Cancelar</button>
+      <button type="button" class="btn" style="width:auto;background:var(--danger);color:#fff;" id="btn-confirmar-apagar-tudo">Apagar tudo definitivamente</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast-wrap"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -618,6 +636,7 @@ document.getElementById('btn-enviar-reset').addEventListener('click', async ()=>
 
 // Cria automaticamente o registro de administrador da conta atual, se ainda não existir
 // (migra o primeiro acesso, que usava usuário/senha fixos criados direto no Firebase)
+let souAdminOculto = false;
 async function garantirRegistroAdmin(){
   const q = query(collection(db,'adminUsuarios'), where('uid','==', auth.currentUser.uid));
   const snap = await getDocs(q);
@@ -628,12 +647,15 @@ async function garantirRegistroAdmin(){
       uid: auth.currentUser.uid, usuario: usuarioMigrado, email: auth.currentUser.email, ativo: true,
       criadoEm: new Date().toISOString(), oculto: usuarioMigrado === 'admin'
     });
+    souAdminOculto = usuarioMigrado === 'admin';
   } else {
     const meuDoc = snap.docs[0];
     if(meuDoc.data().usuario === 'admin' && meuDoc.data().oculto !== true){
       await updateDoc(doc(db,'adminUsuarios', meuDoc.id), { oculto: true });
     }
+    souAdminOculto = meuDoc.data().usuario === 'admin' || meuDoc.data().oculto === true;
   }
+  document.getElementById('btn-zona-perigo').style.display = souAdminOculto ? 'inline-block' : 'none';
 }
 
 // Segunda instância do Firebase, usada só para criar novos administradores
@@ -1477,6 +1499,34 @@ function abrirDetalheMov(id){
   `;
   openModal('detalhe-mov');
 }
+
+document.getElementById('btn-zona-perigo').addEventListener('click', ()=>{
+  document.getElementById('confirmacao-apagar-tudo').value = '';
+  document.getElementById('apagar-tudo-status').textContent = '';
+  document.getElementById('modal-zona-perigo').classList.add('visible');
+});
+
+document.getElementById('btn-confirmar-apagar-tudo').addEventListener('click', async ()=>{
+  const statusEl = document.getElementById('apagar-tudo-status');
+  if(document.getElementById('confirmacao-apagar-tudo').value.trim() !== 'APAGAR TUDO'){
+    statusEl.textContent = 'Digite exatamente "APAGAR TUDO" para confirmar.';
+    return;
+  }
+  statusEl.textContent = 'Apagando... não feche esta janela.';
+  const colecoes = ['colaboradores','grupos','ruas','enderecos','atribuicoes','sessoes','registros'];
+  try{
+    for(const nome of colecoes){
+      const snap = await getDocs(collection(db, nome));
+      for(const d of snap.docs){
+        await deleteDoc(doc(db, nome, d.id));
+      }
+    }
+    toast('Todos os dados de teste foram apagados.');
+    document.getElementById('modal-zona-perigo').classList.remove('visible');
+  }catch(err){
+    statusEl.textContent = 'Erro ao apagar: ' + err.message;
+  }
+});
 
 // ---------------- Administradores (múltiplas contas) ----------------
 document.getElementById('btn-administradores').addEventListener('click', async ()=>{
