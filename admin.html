@@ -578,7 +578,7 @@ import { initializeApp, getApp } from "https://www.gstatic.com/firebasejs/10.12.
 import {
   getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut,
   EmailAuthProvider, reauthenticateWithCredential, updatePassword, createUserWithEmailAndPassword,
-  sendPasswordResetEmail, updateEmail
+  sendPasswordResetEmail, updateEmail, verifyBeforeUpdateEmail
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, getDoc,
@@ -741,9 +741,9 @@ document.getElementById('form-meu-email').addEventListener('submit', async (e)=>
   try{
     const credential = EmailAuthProvider.credential(auth.currentUser.email, senhaAtual);
     await reauthenticateWithCredential(auth.currentUser, credential);
-    await updateEmail(auth.currentUser, novoEmail);
-    await updateDoc(doc(db,'adminUsuarios', meuRegistroAdminId), { email: novoEmail });
-    toast('Email atualizado com sucesso.');
+    await verifyBeforeUpdateEmail(auth.currentUser, novoEmail);
+    await updateDoc(doc(db,'adminUsuarios', meuRegistroAdminId), { emailPendenteVerificacao: novoEmail });
+    toast('Email de confirmação enviado! Clique no link recebido nesse email pra ativar a recuperação de senha por ele.');
     document.getElementById('senha-atual-email').value = '';
   }catch(err){
     if(err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential'){
@@ -1611,20 +1611,21 @@ document.getElementById('form-trocar-senha-obrigatoria').addEventListener('submi
   }
 
   try{
-    await updateEmail(auth.currentUser, novoEmail);
     await updatePassword(auth.currentUser, nova);
-    await updateDoc(doc(db,'adminUsuarios', meuRegistroAdminId), { senhaTemporaria: false, email: novoEmail });
+    try{
+      await verifyBeforeUpdateEmail(auth.currentUser, novoEmail);
+      await updateDoc(doc(db,'adminUsuarios', meuRegistroAdminId), { senhaTemporaria: false, emailPendenteVerificacao: novoEmail });
+      toast('Senha definida! Enviamos um email de confirmação — clique no link recebido pra ativar a recuperação de senha por email.');
+    }catch(emailErr){
+      await updateDoc(doc(db,'adminUsuarios', meuRegistroAdminId), { senhaTemporaria: false });
+      toast('Senha definida! Não foi possível enviar a verificação de email agora — você pode cadastrar o email depois em "Minha conta".', true);
+    }
     precisaTrocarSenha = false;
     document.getElementById('screen-trocar-senha-obrigatoria').style.display = 'none';
     appShell.classList.add('visible');
     startListeners();
-    toast('Email e senha definidos com sucesso!');
   }catch(err){
-    if(err.code === 'auth/email-already-in-use'){
-      errEl.textContent = 'Esse email já está em uso por outra conta.';
-    } else {
-      errEl.textContent = 'Erro: ' + err.message + ' (pode ser necessário sair e entrar de novo com a senha temporária antes de tentar de novo)';
-    }
+    errEl.textContent = 'Erro: ' + err.message + ' (pode ser necessário sair e entrar de novo com a senha temporária antes de tentar de novo)';
   }
 });
 
