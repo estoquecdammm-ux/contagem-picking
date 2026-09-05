@@ -296,6 +296,8 @@
 
       <div class="dash-grid" id="cf-kpis" style="display:none;"></div>
 
+      <button class="btn btn-new" id="cf-btn-exportar" style="width:auto;margin-bottom:16px;display:none;">📊 Exportar para Excel</button>
+
       <table id="cf-tabela" style="display:none;">
         <thead><tr><th>Data</th><th>Colaborador</th><th>Matrícula</th><th>Rua</th><th>Endereço</th><th>Tipo</th><th>Status Senior</th></tr></thead>
         <tbody id="tbody-confronto-senior"></tbody>
@@ -1557,6 +1559,7 @@ async function toggleAtivo(colName, id, cache){
 
 // ================= CONFRONTO SENIOR =================
 let seniorRows = null;
+let resultadosConfrontoAtual = [];
 
 function excelSerialToDate(serial){
   if(serial === undefined || serial === null || serial === '' || isNaN(serial)) return null;
@@ -1639,6 +1642,8 @@ function renderConfrontoSenior(){
 
   const totalConfere = resultados.filter(r=>r.confereSenior).length;
   const totalNaoEncontrado = resultados.length - totalConfere;
+  resultadosConfrontoAtual = resultados;
+  document.getElementById('cf-btn-exportar').style.display = resultados.length > 0 ? 'inline-block' : 'none';
 
   document.getElementById('cf-kpis').style.display = 'grid';
   document.getElementById('cf-kpis').innerHTML = `
@@ -1667,6 +1672,32 @@ function renderConfrontoSenior(){
         : '<span class="badge badge-off">⚠️ Não encontrado</span>'}</td>
     </tr>`).join('');
 }
+
+document.getElementById('cf-btn-exportar').addEventListener('click', ()=>{
+  if(resultadosConfrontoAtual.length === 0){ toast('Nada para exportar.', true); return; }
+
+  const linhas = resultadosConfrontoAtual.map(r=>({
+    'Data': r.data,
+    'Colaborador': r.colaboradorNome || colaboradorNome(r.colaboradorId) || 'Colaborador removido',
+    'Matrícula': r.matriculaResolvida || '',
+    'Rua': ruaCodigo(r.ruaId),
+    'Endereço': r.enderecoCodigo || '',
+    'Tipo': r.tipo,
+    'Quantidade': r.quantidade != null ? r.quantidade : '',
+    'Observação': r.observacao || '',
+    'Código Produto': r.codigoProduto || '',
+    'Status Senior': r.confereSenior ? 'Confere' : 'Não encontrado'
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(linhas);
+  ws['!cols'] = [
+    {wch:12},{wch:22},{wch:10},{wch:8},{wch:14},{wch:22},{wch:10},{wch:30},{wch:16},{wch:16}
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Confronto Senior');
+  XLSX.writeFile(wb, `ConfrontoSenior_${todayStrSimples()}.xlsx`);
+  toast('Excel gerado.');
+});
 </script>
 </body>
 </html>
