@@ -719,9 +719,21 @@ function startListeners(){
     atribuicoes = snap.docs.map(d=>({id:d.id, ...d.data()}));
     renderAtribuicoes();
   });
+  let primeiraCargaRegistros = true;
   onSnapshot(query(collection(db,'registros'), orderBy('timestamp','desc'), limit(500)), snap=>{
     registros = snap.docs.map(d=>({id:d.id, ...d.data()}));
     renderMovimentacoes();
+
+    if(primeiraCargaRegistros){ primeiraCargaRegistros = false; return; }
+    snap.docChanges().forEach(change=>{
+      const r = { id: change.doc.id, ...change.doc.data() };
+      const nome = r.colaboradorNome || colaboradorNome(r.colaboradorId) || 'Colaborador removido';
+      if(change.type === 'added'){
+        toast(`🔔 ${nome} registrou ${r.tipo} em ${r.enderecoCodigo || ruaCodigo(r.ruaId)}`);
+      } else if(change.type === 'modified'){
+        toast(`✎ ${nome} corrigiu o registro de ${r.enderecoCodigo || ruaCodigo(r.ruaId)}`);
+      }
+    });
   });
 }
 
