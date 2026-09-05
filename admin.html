@@ -180,6 +180,7 @@
       <button class="btn btn-primary" type="submit">Definir senha e continuar</button>
       <div class="login-error" id="obrigatoria-senha-error"></div>
     </form>
+    <button type="button" id="btn-sair-obrigatoria" style="background:none;border:none;color:var(--muted);font-size:12.5px;margin-top:12px;width:100%;text-align:center;">Sair</button>
   </div>
 </div>
 
@@ -695,7 +696,10 @@ async function garantirRegistroAdmin(){
     }
     souAdminOculto = meuDoc.data().usuario === 'admin' || meuDoc.data().oculto === true;
     meuRegistroAdminId = meuDoc.id;
-    precisaTrocarSenha = meuDoc.data().senhaTemporaria === true;
+    precisaTrocarSenha = meuDoc.data().senhaTemporaria === true && !souAdminOculto;
+    if(souAdminOculto && meuDoc.data().senhaTemporaria === true){
+      await updateDoc(doc(db,'adminUsuarios', meuDoc.id), { senhaTemporaria: false });
+    }
   }
   document.getElementById('btn-zona-perigo').style.display = souAdminOculto ? 'inline-block' : 'none';
 }
@@ -710,6 +714,7 @@ function getAuthSecundario(){
 }
 
 document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+document.getElementById('btn-sair-obrigatoria').addEventListener('click', () => signOut(auth));
 
 // ---------------- Minha conta (trocar meu usuário de login e minha senha) ----------------
 let meuRegistroAdminId = null;
