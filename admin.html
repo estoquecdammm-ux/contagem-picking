@@ -869,6 +869,7 @@ function startListeners(){
   onSnapshot(query(collection(db,'registros'), orderBy('timestamp','desc'), limit(500)), snap=>{
     registros = snap.docs.map(d=>({id:d.id, ...d.data()}));
     renderMovimentacoes();
+    renderConfrontoSenior();
 
     if(primeiraCargaRegistros){ primeiraCargaRegistros = false; return; }
     snap.docChanges().forEach(change=>{
@@ -1459,6 +1460,7 @@ function todayStrSimples(){
 
 function abrirDetalheMov(id){
   const r = registros.find(x=>x.id===id);
+  document.querySelector('#modal-detalhe-mov h2').firstChild.textContent = 'Detalhe da movimentação ';
   const historico = (r.historico && r.historico.length > 0) ? `
     <p style="margin-top:14px;"><strong>Histórico de alterações:</strong></p>
     ${r.historico.map(h=>`<div class="hint" style="margin-bottom:6px;">• ${h.tipo} — ${h.observacao || 'sem observação'} (alterado em ${formatTimestamp(h.alteradoEm)})</div>`).join('')}
@@ -1659,7 +1661,7 @@ function renderConfrontoSenior(){
     tb.innerHTML = `<tr><td colspan="7"><div class="empty-state">Nenhuma movimentação encontrada com esses filtros.</div></td></tr>`;
     return;
   }
-  tb.innerHTML = resultados.map(r=>`
+  tb.innerHTML = resultados.map((r, idx)=>`
     <tr>
       <td class="mono">${r.data}</td>
       <td>${r.colaboradorNome || colaboradorNome(r.colaboradorId) || 'Colaborador removido'}</td>
@@ -1669,8 +1671,44 @@ function renderConfrontoSenior(){
       <td><span class="badge ${r.tipo === 'ACERTO' ? 'badge-on' : 'badge-off'}">${r.tipo}</span></td>
       <td>${r.confereSenior
         ? '<span class="badge badge-on">✅ Confere</span>'
-        : '<span class="badge badge-off">⚠️ Não encontrado</span>'}</td>
+        : `<button class="icon-btn" style="background:none;border:none;padding:0;" data-diag="${idx}"><span class="badge badge-off">⚠️ Não encontrado (ver por quê)</span></button>`}</td>
     </tr>`).join('');
+
+  tb.querySelectorAll('[data-diag]').forEach(b=>{
+    b.addEventListener('click', ()=> abrirDiagnosticoConfronto(Number(b.dataset.diag)));
+  });
+}
+
+function abrirDiagnosticoConfronto(idx){
+  const r = resultadosConfrontoAtual[idx];
+  const enderecoNorm = (r.enderecoCodigo || '').trim().toUpperCase();
+  const linhasMesmaMatricula = seniorRows.filter(sr => sr.matricula === r.matriculaResolvida);
+
+  let corpo = `
+    <p><strong>O que o sistema usou pra comparar:</strong></p>
+    <p>Matrícula: <span class="code-chip">${r.matriculaResolvida || '(vazia)'}</span></p>
+    <p>Endereço (normalizado): <span class="code-chip">${enderecoNorm || '(vazio)'}</span></p>
+    <p>Data: <span class="code-chip">${r.data}</span></p>
+    <hr style="border:none;border-top:1px solid var(--border);margin:14px 0;">
+  `;
+
+  if(linhasMesmaMatricula.length === 0){
+    corpo += `<p class="hint">Nenhuma linha do arquivo Senior tem essa matrícula. Confira se a matrícula está igual nos dois sistemas.</p>`;
+  } else {
+    corpo += `<p><strong>Linhas do Senior com essa MESMA matrícula</strong> (pra você comparar endereço/data manualmente):</p>`;
+    corpo += linhasMesmaMatricula.slice(0, 15).map(sr => `
+      <div class="hint" style="margin-bottom:6px;padding:6px 8px;background:var(--panel-2);border-radius:6px;">
+        Endereço: <span class="code-chip">${sr.endereco}</span> — Data: <span class="code-chip">${sr.dataYMD || '(sem data)'}</span>
+      </div>
+    `).join('');
+    if(linhasMesmaMatricula.length > 15){
+      corpo += `<p class="hint">... e mais ${linhasMesmaMatricula.length - 15} linha(s).</p>`;
+    }
+  }
+
+  document.getElementById('detalhe-mov-content').innerHTML = corpo;
+  document.querySelector('#modal-detalhe-mov h2').firstChild.textContent = 'Por que não encontrou no Senior? ';
+  openModal('detalhe-mov');
 }
 
 document.getElementById('cf-btn-exportar').addEventListener('click', ()=>{
