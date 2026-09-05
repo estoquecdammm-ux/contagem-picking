@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>SwiftCount — Contagem</title>
+<title>Contagem Picking Lojas MM</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0F1626; --panel:#1A2438; --panel-2:#212D46; --border:#2B3752;
-    --text:#E9EEF7; --muted:#8C99B8; --accent:#F5A623; --accent-dark:#C97F0F;
-    --success:#2FBF71; --danger:#EF5D5D; --warn:#F5C542;
+    --bg:#F4F5F8; --panel:#FFFFFF; --panel-2:#F1F2F6; --border:#E3E6EC;
+    --text:#1B2233; --muted:#7A8296; --accent:#E0303F; --accent-dark:#B9232F;
+    --success:#2FA36B; --danger:#C0392B; --warn:#D98A15;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;}
@@ -29,7 +29,7 @@
 
   .btn{border:none;border-radius:12px;padding:16px 18px;font-weight:700;font-size:16px;width:100%;transition:filter .15s, transform .08s;}
   .btn:active{transform:scale(.98);}
-  .btn-primary{background:var(--accent);color:#1a1200;}
+  .btn-primary{background:var(--accent);color:#fff;}
   .btn-secondary{background:var(--panel-2);color:var(--text);border:1px solid var(--border);}
   .btn-success{background:var(--success);color:#052112;}
   .btn-lg{padding:22px;font-size:18px;}
@@ -40,9 +40,9 @@
   .field{margin-bottom:16px;}
   label{font-size:12.5px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px;}
 
-  .update-banner{display:none;position:sticky;top:0;z-index:150;background:var(--accent);color:#1a1200;padding:10px 16px;font-size:13px;font-weight:700;align-items:center;justify-content:space-between;gap:10px;}
+  .update-banner{display:none;position:sticky;top:0;z-index:150;background:var(--accent);color:#fff;padding:10px 16px;font-size:13px;font-weight:700;align-items:center;justify-content:space-between;gap:10px;}
   .update-banner.visible{display:flex;}
-  .update-banner button{background:#1a1200;color:var(--accent);border:none;border-radius:8px;padding:7px 12px;font-weight:700;font-size:12.5px;white-space:nowrap;}
+  .update-banner button{background:#fff;color:var(--accent);border:none;border-radius:8px;padding:7px 12px;font-weight:700;font-size:12.5px;white-space:nowrap;}
 
   /* Minha Contagem */
   .greeting{font-size:20px;font-weight:700;margin:4px 0 2px;}
@@ -101,7 +101,7 @@
     <span>🔔 O administrador atualizou dados.</span>
     <button id="btn-atualizar-banner">Atualizar agora</button>
   </div>
-  <div class="topbar"><span class="dot"></span><span class="brand">SwiftCount</span></div>
+  <div class="topbar"><span class="dot"></span><span class="brand">Contagem Picking</span></div>
 
   <!-- TOKEN INVÁLIDO -->
   <div class="screen center" id="screen-invalido">
@@ -498,7 +498,7 @@ async function salvarRegistro(tipo, extras){
   }
 
   const data = {
-    sessaoId: sessaoAtualId, colaboradorId: colaborador.id, ruaId: ruaAtual.ruaId,
+    sessaoId: sessaoAtualId, colaboradorId: colaborador.id, colaboradorNome: colaborador.nome, ruaId: ruaAtual.ruaId,
     grupoId: ruaAtual.grupoId, enderecoCodigo: codigoDigitado,
     ...novoTopo, historico
   };

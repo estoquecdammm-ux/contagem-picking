@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SwiftCount — Painel Admin</title>
+<title>Contagem Picking Lojas MM — Painel Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
@@ -119,8 +119,8 @@
 <!-- ================= LOGIN ================= -->
 <div id="login-screen">
   <div class="login-box">
-    <div class="brand"><span class="dot"></span>SwiftCount</div>
-    <p class="sub">Painel Administrativo</p>
+    <div class="brand"><span class="dot"></span>Contagem Picking</div>
+    <p class="sub">Lojas MM — Painel Administrativo</p>
     <form id="login-form">
       <div class="field">
         <label>Usuário</label>
@@ -140,10 +140,10 @@
 <div id="app-shell">
   <header class="topnav">
     <div class="topnav-brand">
-      <div class="brand-box">SC</div>
+      <div class="brand-box">MM</div>
       <div class="brand-textwrap">
-        <div class="brand-title">SwiftCount</div>
-        <div class="brand-sub">Painel Administrativo</div>
+        <div class="brand-title">Contagem Picking</div>
+        <div class="brand-sub">Lojas MM · Painel Administrativo</div>
       </div>
     </div>
     <nav class="topnav-pills">
@@ -524,7 +524,7 @@ let registros = [];
 
 function grupoNome(id){ const g = grupos.find(x=>x.id===id); return g ? g.nome : '—'; }
 function ruaCodigo(id){ const r = ruas.find(x=>x.id===id); return r ? r.codigo : '—'; }
-function colaboradorNome(id){ const c = colaboradores.find(x=>x.id===id); return c ? c.nome : '—'; }
+function colaboradorNome(id){ const c = colaboradores.find(x=>x.id===id); return c ? c.nome : null; }
 
 function badge(ativo){
   return `<span class="badge ${ativo?'badge-on':'badge-off'}">${ativo?'Ativo':'Inativo'}</span>`;
@@ -605,11 +605,25 @@ function renderColaboradores(){
       <td><div class="row-actions">
         <button class="icon-btn" data-edit-colaborador="${c.id}" title="Editar">✎</button>
         <button class="icon-btn" data-toggle-colaborador="${c.id}" title="${c.ativo!==false?'Desativar':'Ativar'}">${c.ativo!==false?'⏻':'✓'}</button>
+        <button class="icon-btn" data-excluir-colaborador="${c.id}" title="Excluir definitivamente">🗑</button>
       </div></td>
     </tr>`;
   }).join('');
   tb.querySelectorAll('[data-edit-colaborador]').forEach(b=>b.addEventListener('click', ()=>editColaborador(b.dataset.editColaborador)));
   tb.querySelectorAll('[data-toggle-colaborador]').forEach(b=>b.addEventListener('click', ()=>toggleAtivo('colaboradores', b.dataset.toggleColaborador, colaboradores)));
+  tb.querySelectorAll('[data-excluir-colaborador]').forEach(b=>b.addEventListener('click', ()=>excluirColaborador(b.dataset.excluirColaborador)));
+}
+
+async function excluirColaborador(id){
+  const c = colaboradores.find(x=>x.id===id);
+  const confirmar = confirm(`Excluir definitivamente "${c.nome}"?\n\nEssa ação não pode ser desfeita. O histórico de movimentações já feitas por ele NÃO será apagado (fica registrado com o nome atual), mas o cadastro em si será removido para sempre.`);
+  if(!confirmar) return;
+  try{
+    await deleteDoc(doc(db,'colaboradores', id));
+    toast('Colaborador excluído definitivamente.');
+  }catch(err){
+    toast('Erro ao excluir: ' + err.message, true);
+  }
 }
 
 function editColaborador(id){
@@ -919,7 +933,7 @@ function renderMovimentacoes(){
   tb.innerHTML = filtrados.map(r=>`
     <tr>
       <td class="mono">${formatTimestamp(r.timestamp)}</td>
-      <td>${colaboradorNome(r.colaboradorId)}</td>
+      <td>${r.colaboradorNome || colaboradorNome(r.colaboradorId) || 'Colaborador removido'}</td>
       <td class="mono">${ruaCodigo(r.ruaId)}</td>
       <td class="mono">${r.enderecoCodigo || '—'}</td>
       <td><span class="badge ${r.tipo === 'ACERTO' ? 'badge-on' : 'badge-off'}">${r.tipo}</span></td>
@@ -944,18 +958,38 @@ document.getElementById('btn-exportar-word').addEventListener('click', ()=>{
   if(fTipoVal) filtrosTexto.push(`Tipo: ${fTipoVal}`);
   if(fDataVal) filtrosTexto.push(`Data: ${fDataVal}`);
 
-  const linhas = filtrados.map(r => `
-    <tr>
-      <td>${formatTimestamp(r.timestamp)}</td>
-      <td>${colaboradorNome(r.colaboradorId)}</td>
-      <td>${ruaCodigo(r.ruaId)}</td>
-      <td>${r.enderecoCodigo || '—'}</td>
-      <td>${r.tipo}</td>
-      <td>${r.observacao || '—'}</td>
-      <td>${r.codigoProduto || '—'}</td>
-    </tr>`).join('');
+  // Monta as partes de imagem (uma parte MIME por foto, referenciada via cid:)
+  const boundary = '----=_NextPart_ContagemPicking_' + Date.now();
+  let imagePartsMime = '';
+  let linhas = '';
 
-  const html = `
+  filtrados.forEach((r, idx)=>{
+    const nomeColab = r.colaboradorNome || colaboradorNome(r.colaboradorId) || 'Colaborador removido';
+    linhas += `
+      <tr>
+        <td>${formatTimestamp(r.timestamp)}</td>
+        <td>${nomeColab}</td>
+        <td>${ruaCodigo(r.ruaId)}</td>
+        <td>${r.enderecoCodigo || '—'}</td>
+        <td>${r.tipo}</td>
+        <td>${r.observacao || '—'}</td>
+        <td>${r.codigoProduto || '—'}</td>
+      </tr>`;
+    if(r.foto){
+      const cid = `foto${idx}`;
+      const base64Data = r.foto.split(',')[1] || '';
+      linhas += `
+      <tr>
+        <td colspan="7" style="text-align:center;padding:10px;">
+          <img src="cid:${cid}" style="max-width:380px;"><br>
+          <span style="font-size:8pt;color:#666;">Foto — ${r.enderecoCodigo || ''} (${r.tipo})</span>
+        </td>
+      </tr>`;
+      imagePartsMime += `\r\n--${boundary}\r\nContent-Type: image/jpeg\r\nContent-Transfer-Encoding: base64\r\nContent-ID: <${cid}>\r\n\r\n${base64Data}\r\n`;
+    }
+  });
+
+  const htmlBody = `
     <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
     <head>
       <meta charset="utf-8">
@@ -970,7 +1004,7 @@ document.getElementById('btn-exportar-word').addEventListener('click', ()=>{
       </style>
     </head>
     <body>
-      <h1>Relatório de Movimentações — SwiftCount</h1>
+      <h1>Relatório de Movimentações — Contagem Picking Lojas MM</h1>
       <p>Gerado em ${agora}</p>
       <p>${filtrosTexto.length ? 'Filtros aplicados: ' + filtrosTexto.join(' · ') : 'Sem filtros aplicados (todas as movimentações)'}</p>
       <p>Total de registros: ${filtrados.length}</p>
@@ -983,11 +1017,23 @@ document.getElementById('btn-exportar-word').addEventListener('click', ()=>{
     </body>
     </html>`;
 
-  const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+  const htmlBase64 = btoa(unescape(encodeURIComponent(htmlBody)));
+
+  const mhtml =
+    `MIME-Version: 1.0\r\n` +
+    `Content-Type: multipart/related; boundary="${boundary}"\r\n\r\n` +
+    `--${boundary}\r\n` +
+    `Content-Type: text/html; charset="utf-8"\r\n` +
+    `Content-Transfer-Encoding: base64\r\n\r\n` +
+    `${htmlBase64}\r\n` +
+    imagePartsMime +
+    `--${boundary}--`;
+
+  const blob = new Blob([mhtml], { type: 'application/msword' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `SwiftCount_Movimentacoes_${todayStrSimples()}.doc`;
+  a.download = `ContagemPicking_Movimentacoes_${todayStrSimples()}.doc`;
   a.click();
   URL.revokeObjectURL(url);
   toast('Arquivo Word gerado.');
@@ -1005,7 +1051,7 @@ function abrirDetalheMov(id){
     ${r.historico.map(h=>`<div class="hint" style="margin-bottom:6px;">• ${h.tipo} — ${h.observacao || 'sem observação'} (alterado em ${formatTimestamp(h.alteradoEm)})</div>`).join('')}
   ` : '';
   document.getElementById('detalhe-mov-content').innerHTML = `
-    <p><strong>Colaborador:</strong> ${colaboradorNome(r.colaboradorId)}</p>
+    <p><strong>Colaborador:</strong> ${r.colaboradorNome || colaboradorNome(r.colaboradorId) || 'Colaborador removido'}</p>
     <p><strong>Rua:</strong> ${ruaCodigo(r.ruaId)} &nbsp; <strong>Endereço:</strong> ${r.enderecoCodigo || '—'}</p>
     <p><strong>Tipo:</strong> ${r.tipo}</p>
     <p><strong>Data/Hora:</strong> ${formatTimestamp(r.timestamp)} (${r.diaSemana || ''})</p>
