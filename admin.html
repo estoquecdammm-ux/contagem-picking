@@ -158,6 +158,27 @@
   </div>
 </div>
 
+<!-- ================= TROCA DE SENHA OBRIGATÓRIA (primeiro acesso) ================= -->
+<div id="screen-trocar-senha-obrigatoria" style="display:none;min-height:100vh;align-items:center;justify-content:center;background:var(--bg);">
+  <div class="login-box">
+    <div class="brand"><span class="dot"></span>Contagem Picking</div>
+    <p class="sub">Primeiro acesso — defina sua senha</p>
+    <p class="hint" style="margin-bottom:18px;">Por segurança, você precisa criar uma senha própria antes de continuar. Ela deve ter: mínimo 8 caracteres, 1 letra maiúscula, 1 número e 1 caractere especial (ex: @, #, !).</p>
+    <form id="form-trocar-senha-obrigatoria">
+      <div class="field">
+        <label>Nova senha</label>
+        <input type="password" id="obrigatoria-senha-nova" required>
+      </div>
+      <div class="field">
+        <label>Confirmar nova senha</label>
+        <input type="password" id="obrigatoria-senha-confirma" required>
+      </div>
+      <button class="btn btn-primary" type="submit">Definir senha e continuar</button>
+      <div class="login-error" id="obrigatoria-senha-error"></div>
+    </form>
+  </div>
+</div>
+
 <!-- ================= APP SHELL ================= -->
 <div id="app-shell">
   <header class="topnav">
@@ -477,12 +498,12 @@
         <input type="password" id="senha-atual" required>
       </div>
       <div class="field">
-        <label>Nova senha *</label>
-        <input type="password" id="senha-nova" required minlength="6">
+        <label>Nova senha * <span class="hint">(8+ caracteres, 1 maiúscula, 1 número, 1 especial)</span></label>
+        <input type="password" id="senha-nova" required minlength="8">
       </div>
       <div class="field">
         <label>Confirmar nova senha *</label>
-        <input type="password" id="senha-nova-confirma" required minlength="6">
+        <input type="password" id="senha-nova-confirma" required minlength="8">
       </div>
       <div class="login-error" id="senha-error" style="min-height:16px;"></div>
       <button type="submit" class="btn btn-primary" style="width:auto;">Atualizar senha</button>
@@ -506,11 +527,15 @@
         <label>Email real * <span class="hint">(usado só para redefinir senha, se esquecer)</span></label>
         <input type="email" id="novo-admin-email" required placeholder="email@exemplo.com">
       </div>
-      <div class="field">
-        <label>Senha inicial *</label>
-        <input type="password" id="novo-admin-senha" required minlength="6">
-      </div>
+      <p class="hint" style="margin-bottom:14px;">O sistema gera uma senha padrão temporária. No primeiro login, essa pessoa será obrigada a trocar por uma senha própria.</p>
       <div class="login-error" id="novo-admin-error" style="min-height:16px;"></div>
+      <div id="novo-admin-sucesso" style="display:none;background:rgba(47,163,107,.1);border:1px solid var(--success);border-radius:10px;padding:14px;margin-bottom:14px;">
+        <p style="margin:0 0 8px;font-weight:600;">Administrador criado! Repasse esses dados de acesso:</p>
+        <div class="link-box">
+          <input type="text" id="novo-admin-senha-gerada" readonly>
+          <button type="button" class="btn btn-secondary" id="btn-copiar-senha-gerada">Copiar</button>
+        </div>
+      </div>
       <button type="submit" class="btn btn-primary" style="width:auto;">+ Adicionar administrador</button>
     </form>
   </div>
@@ -649,23 +674,28 @@ document.getElementById('btn-enviar-reset').addEventListener('click', async ()=>
 // Cria automaticamente o registro de administrador da conta atual, se ainda não existir
 // (migra o primeiro acesso, que usava usuário/senha fixos criados direto no Firebase)
 let souAdminOculto = false;
+let precisaTrocarSenha = false;
 async function garantirRegistroAdmin(){
   const q = query(collection(db,'adminUsuarios'), where('uid','==', auth.currentUser.uid));
   const snap = await getDocs(q);
   if(snap.empty){
     const configAntigo = await getDoc(doc(db,'config','login'));
     const usuarioMigrado = configAntigo.exists() ? configAntigo.data().usuario : 'admin';
-    await addDoc(collection(db,'adminUsuarios'), {
+    const novoRef = await addDoc(collection(db,'adminUsuarios'), {
       uid: auth.currentUser.uid, usuario: usuarioMigrado, email: auth.currentUser.email, ativo: true,
       criadoEm: new Date().toISOString(), oculto: usuarioMigrado === 'admin'
     });
     souAdminOculto = usuarioMigrado === 'admin';
+    meuRegistroAdminId = novoRef.id;
+    precisaTrocarSenha = false;
   } else {
     const meuDoc = snap.docs[0];
     if(meuDoc.data().usuario === 'admin' && meuDoc.data().oculto !== true){
       await updateDoc(doc(db,'adminUsuarios', meuDoc.id), { oculto: true });
     }
     souAdminOculto = meuDoc.data().usuario === 'admin' || meuDoc.data().oculto === true;
+    meuRegistroAdminId = meuDoc.id;
+    precisaTrocarSenha = meuDoc.data().senhaTemporaria === true;
   }
   document.getElementById('btn-zona-perigo').style.display = souAdminOculto ? 'inline-block' : 'none';
 }
@@ -754,8 +784,8 @@ document.getElementById('form-trocar-senha').addEventListener('submit', async (e
     errEl.textContent = 'As senhas novas não são iguais.';
     return;
   }
-  if(senhaNova.length < 6){
-    errEl.textContent = 'A nova senha precisa ter pelo menos 6 caracteres.';
+  if(!senhaForte(senhaNova)){
+    errEl.textContent = 'A senha precisa ter 8+ caracteres, 1 maiúscula, 1 número e 1 caractere especial.';
     return;
   }
 
@@ -777,12 +807,19 @@ document.getElementById('form-trocar-senha').addEventListener('submit', async (e
 onAuthStateChanged(auth, async (user) => {
   if(user){
     loginScreen.style.display = 'none';
-    appShell.classList.add('visible');
     await garantirRegistroAdmin();
-    startListeners();
+    if(precisaTrocarSenha){
+      document.getElementById('screen-trocar-senha-obrigatoria').style.display = 'flex';
+      appShell.classList.remove('visible');
+    } else {
+      document.getElementById('screen-trocar-senha-obrigatoria').style.display = 'none';
+      appShell.classList.add('visible');
+      startListeners();
+    }
   } else {
     loginScreen.style.display = 'flex';
     appShell.classList.remove('visible');
+    document.getElementById('screen-trocar-senha-obrigatoria').style.display = 'none';
   }
 });
 
@@ -1550,13 +1587,53 @@ document.getElementById('btn-confirmar-apagar-tudo').addEventListener('click', a
   }
 });
 
+function gerarSenhaTemporaria(){
+  const numero = Math.floor(1000 + Math.random() * 9000);
+  return `Trocar@${numero}`;
+}
+
+function senhaForte(s){
+  return s.length >= 8 && /[A-Z]/.test(s) && /[0-9]/.test(s) && /[^A-Za-z0-9]/.test(s);
+}
+
+document.getElementById('form-trocar-senha-obrigatoria').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const nova = document.getElementById('obrigatoria-senha-nova').value;
+  const confirma = document.getElementById('obrigatoria-senha-confirma').value;
+  const errEl = document.getElementById('obrigatoria-senha-error');
+  errEl.textContent = '';
+
+  if(nova !== confirma){ errEl.textContent = 'As senhas não são iguais.'; return; }
+  if(!senhaForte(nova)){
+    errEl.textContent = 'A senha precisa ter 8+ caracteres, 1 maiúscula, 1 número e 1 caractere especial.';
+    return;
+  }
+
+  try{
+    await updatePassword(auth.currentUser, nova);
+    await updateDoc(doc(db,'adminUsuarios', meuRegistroAdminId), { senhaTemporaria: false });
+    precisaTrocarSenha = false;
+    document.getElementById('screen-trocar-senha-obrigatoria').style.display = 'none';
+    appShell.classList.add('visible');
+    startListeners();
+    toast('Senha definida com sucesso!');
+  }catch(err){
+    errEl.textContent = 'Erro: ' + err.message + ' (pode ser necessário sair e entrar de novo com a senha temporária antes de tentar de novo)';
+  }
+});
+
+document.getElementById('btn-copiar-senha-gerada').addEventListener('click', ()=>{
+  navigator.clipboard.writeText(document.getElementById('novo-admin-senha-gerada').value);
+  toast('Copiado.');
+});
+
 // ---------------- Administradores (múltiplas contas) ----------------
 document.getElementById('btn-administradores').addEventListener('click', async ()=>{
   await renderListaAdministradores();
   document.getElementById('novo-admin-usuario').value = '';
   document.getElementById('novo-admin-email').value = '';
-  document.getElementById('novo-admin-senha').value = '';
   document.getElementById('novo-admin-error').textContent = '';
+  document.getElementById('novo-admin-sucesso').style.display = 'none';
   document.getElementById('modal-administradores').classList.add('visible');
 });
 
@@ -1575,7 +1652,10 @@ async function renderListaAdministradores(){
         ${a.uid === auth.currentUser.uid ? ' <span class="hint">(você)</span>' : ''}
         <div class="hint">${a.ativo !== false ? 'Ativo' : 'Desativado'}</div>
       </div>
-      ${a.uid !== auth.currentUser.uid ? `<button class="icon-btn" data-toggle-admin="${a.id}">${a.ativo !== false ? '⏻' : '✓'}</button>` : ''}
+      ${a.uid !== auth.currentUser.uid ? `<div class="row-actions">
+        <button class="icon-btn" data-toggle-admin="${a.id}">${a.ativo !== false ? '⏻' : '✓'}</button>
+        <button class="icon-btn" data-excluir-admin="${a.id}" title="Excluir definitivamente">🗑</button>
+      </div>` : ''}
     </div>
   `).join('');
   list.querySelectorAll('[data-toggle-admin]').forEach(b=>{
@@ -1586,15 +1666,25 @@ async function renderListaAdministradores(){
       renderListaAdministradores();
     });
   });
+  list.querySelectorAll('[data-excluir-admin]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const admin = admins.find(a=>a.id===b.dataset.excluirAdmin);
+      const confirmar = confirm(`Excluir definitivamente o acesso de "${admin.usuario}"?\n\nEle nunca mais vai conseguir logar. (A conta bruta pode continuar existindo no Firebase Authentication, mas sem nenhum acesso ao painel.)`);
+      if(!confirmar) return;
+      await deleteDoc(doc(db,'adminUsuarios', admin.id));
+      toast(`Acesso de "${admin.usuario}" removido definitivamente.`);
+      renderListaAdministradores();
+    });
+  });
 }
 
 document.getElementById('form-novo-admin').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const usuario = document.getElementById('novo-admin-usuario').value.trim().toLowerCase();
   const email = document.getElementById('novo-admin-email').value.trim().toLowerCase();
-  const senha = document.getElementById('novo-admin-senha').value;
   const errEl = document.getElementById('novo-admin-error');
   errEl.textContent = '';
+  document.getElementById('novo-admin-sucesso').style.display = 'none';
 
   const qExiste = query(collection(db,'adminUsuarios'), where('usuario','==', usuario));
   const snapExiste = await getDocs(qExiste);
@@ -1603,17 +1693,19 @@ document.getElementById('form-novo-admin').addEventListener('submit', async (e)=
     return;
   }
 
+  const senha = gerarSenhaTemporaria();
+
   try{
     const authSecundario = getAuthSecundario();
     const cred = await createUserWithEmailAndPassword(authSecundario, email, senha);
     await signOut(authSecundario); // encerra a sessão secundária, sem afetar quem já está logado
     await addDoc(collection(db,'adminUsuarios'), {
-      uid: cred.user.uid, usuario, email, ativo: true, criadoEm: new Date().toISOString()
+      uid: cred.user.uid, usuario, email, ativo: true, criadoEm: new Date().toISOString(), senhaTemporaria: true
     });
-    toast(`Administrador "${usuario}" criado.`);
+    document.getElementById('novo-admin-senha-gerada').value = `Usuário: ${usuario}  |  Senha: ${senha}`;
+    document.getElementById('novo-admin-sucesso').style.display = 'block';
     document.getElementById('novo-admin-usuario').value = '';
     document.getElementById('novo-admin-email').value = '';
-    document.getElementById('novo-admin-senha').value = '';
     renderListaAdministradores();
   }catch(err){
     if(err.code === 'auth/email-already-in-use'){
