@@ -339,7 +339,8 @@ async function carregarMinhaContagem(){
       ruaCodigo: ruasMap[a.ruaId].codigo,
       grupoId: a.grupoId,
       grupoNome: gruposMap[a.grupoId] ? gruposMap[a.grupoId].nome : '—'
-    }));
+    }))
+    .sort(compararRuas);
 
   const list = document.getElementById('ruas-list');
   list.innerHTML = '';
@@ -369,6 +370,22 @@ async function carregarMinhaContagem(){
 
 function sessionId(colaboradorId, ruaId, dataStr){
   return `${colaboradorId}__${ruaId}__${dataStr}`;
+}
+
+// Ruas principais (3A, 4F) aparecem primeiro; dentro de cada grupo, ordem numérica crescente
+const PREFIXOS_PRINCIPAIS = ['3A', '4F'];
+function parseCodigoRua(codigo){
+  const match = String(codigo).toUpperCase().match(/^([A-Z]+)(\d+)/);
+  if(match) return { prefix: match[1], num: parseInt(match[2], 10) };
+  return { prefix: String(codigo).toUpperCase(), num: 0 };
+}
+function compararRuas(a, b){
+  const pa = parseCodigoRua(a.ruaCodigo), pb = parseCodigoRua(b.ruaCodigo);
+  const principalA = PREFIXOS_PRINCIPAIS.includes(pa.prefix) ? 0 : 1;
+  const principalB = PREFIXOS_PRINCIPAIS.includes(pb.prefix) ? 0 : 1;
+  if(principalA !== principalB) return principalA - principalB;
+  if(pa.prefix !== pb.prefix) return pa.prefix.localeCompare(pb.prefix);
+  return pa.num - pb.num;
 }
 
 document.getElementById('btn-ver-historico').addEventListener('click', carregarHistorico);
