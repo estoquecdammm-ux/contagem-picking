@@ -81,6 +81,19 @@
   .icon-btn:hover{color:var(--text);border-color:var(--muted);}
   .icon-btn svg{width:14px;height:14px;}
   .empty-state{padding:50px 20px;text-align:center;color:var(--muted);}
+
+  .dash-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+  .dash-kpi{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;text-align:center;}
+  .dash-kpi .num{font-size:26px;font-weight:800;font-family:'Space Grotesk',sans-serif;}
+  .dash-kpi .lbl{color:var(--muted);font-size:11.5px;margin-top:4px;text-transform:uppercase;letter-spacing:.02em;}
+  .dash-panels{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+  .dash-panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px;}
+  .dash-panel h3{font-size:14px;margin:0 0 14px;}
+  .dash-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:13px;}
+  .dash-row .rank-label{width:150px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .dash-bar-track{flex:1;background:var(--panel-2);border-radius:6px;height:15px;overflow:hidden;}
+  .dash-bar-fill{height:100%;background:var(--accent);border-radius:6px;}
+  .dash-row .rank-value{width:32px;text-align:right;font-weight:700;flex-shrink:0;}
   .code-chip{font-family:'JetBrains Mono',monospace;background:var(--panel-2);border:1px solid var(--border);padding:2px 7px;border-radius:6px;font-size:12.5px;}
 
   /* ---------- Modal ---------- */
@@ -247,6 +260,14 @@
         <input type="date" id="filtro-data-final" title="Data final" style="max-width:170px;">
         <button class="btn btn-new" id="btn-exportar-word" style="width:auto;">📄 Exportar para Word</button>
       </div>
+
+      <div class="dash-grid" id="dash-kpis"></div>
+      <div class="dash-panels">
+        <div class="dash-panel" id="dash-tipos"></div>
+        <div class="dash-panel" id="dash-causadores"></div>
+      </div>
+      <div class="dash-panel" id="dash-produtos" style="margin-bottom:20px;"></div>
+
       <table>
         <thead><tr><th>Data/Hora</th><th>Colaborador</th><th>Rua</th><th>Endereço</th><th>Tipo</th><th>Qtd</th><th></th></tr></thead>
         <tbody id="tbody-movimentacoes"></tbody>
@@ -1210,6 +1231,7 @@ function renderMovimentacoes(){
   const tb = document.getElementById('tbody-movimentacoes');
   if(!tb) return;
   const filtrados = getFiltrados();
+  renderDashboard(filtrados);
 
   if(filtrados.length === 0){
     tb.innerHTML = `<tr><td colspan="6"><div class="empty-state">Nenhuma movimentação encontrada.</div></td></tr>`;
@@ -1228,6 +1250,70 @@ function renderMovimentacoes(){
     </tr>`).join('');
 
   tb.querySelectorAll('[data-detalhe]').forEach(b=>b.addEventListener('click', ()=>abrirDetalheMov(b.dataset.detalhe)));
+}
+
+function renderDashboard(dados){
+  const total = dados.length;
+  const acertos = dados.filter(r=>r.tipo==='ACERTO').length;
+  const faltas = dados.filter(r=>r.tipo==='FALTA').length;
+  const sobras = dados.filter(r=>r.tipo==='SOBRA').length;
+
+  document.getElementById('dash-kpis').innerHTML = `
+    <div class="dash-kpi"><div class="num">${total}</div><div class="lbl">Registrados</div></div>
+    <div class="dash-kpi"><div class="num" style="color:var(--success)">${acertos}</div><div class="lbl">Acertos</div></div>
+    <div class="dash-kpi"><div class="num" style="color:var(--danger)">${faltas}</div><div class="lbl">Faltas</div></div>
+    <div class="dash-kpi"><div class="num" style="color:var(--warn)">${sobras}</div><div class="lbl">Sobras</div></div>
+  `;
+
+  // Tipos mais frequentes (incluindo ACERTO)
+  const porTipo = {};
+  dados.forEach(r=>{ porTipo[r.tipo] = (porTipo[r.tipo]||0)+1; });
+  const rankingTipo = Object.entries(porTipo).sort((a,b)=>b[1]-a[1]);
+  const maxTipo = rankingTipo.length ? rankingTipo[0][1] : 1;
+  document.getElementById('dash-tipos').innerHTML = `
+    <h3>Tipos mais frequentes</h3>
+    ${rankingTipo.length===0 ? '<div class="hint">Sem registros no período.</div>' : rankingTipo.map(([tipo,qtd])=>`
+      <div class="dash-row">
+        <div class="rank-label">${tipo}</div>
+        <div class="dash-bar-track"><div class="dash-bar-fill" style="width:${(qtd/maxTipo)*100}%;background:${tipo==='ACERTO' ? 'var(--success)' : 'var(--danger)'};"></div></div>
+        <div class="rank-value">${qtd}</div>
+      </div>`).join('')}
+  `;
+
+  // Maiores causadores (todas as movimentações, incluindo ACERTO)
+  const porColaborador = {};
+  dados.forEach(r=>{
+    const nome = r.colaboradorNome || colaboradorNome(r.colaboradorId) || 'Removido';
+    porColaborador[nome] = (porColaborador[nome]||0)+1;
+  });
+  const rankingColab = Object.entries(porColaborador).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const maxColab = rankingColab.length ? rankingColab[0][1] : 1;
+  document.getElementById('dash-causadores').innerHTML = `
+    <h3>Colaboradores com mais movimentações</h3>
+    ${rankingColab.length===0 ? '<div class="hint">Sem registros no período.</div>' : rankingColab.map(([nome,qtd])=>`
+      <div class="dash-row">
+        <div class="rank-label">${nome}</div>
+        <div class="dash-bar-track"><div class="dash-bar-fill" style="width:${(qtd/maxColab)*100}%"></div></div>
+        <div class="rank-value">${qtd}</div>
+      </div>`).join('')}
+  `;
+
+  // Produtos com mais problemas (segue considerando só ocorrências reais, ACERTO não tem código de produto relevante)
+  const porProduto = {};
+  dados.filter(r=>r.codigoProduto).forEach(r=>{
+    porProduto[r.codigoProduto] = (porProduto[r.codigoProduto]||0)+1;
+  });
+  const rankingProduto = Object.entries(porProduto).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const maxProduto = rankingProduto.length ? rankingProduto[0][1] : 1;
+  document.getElementById('dash-produtos').innerHTML = `
+    <h3>Produtos com mais problemas</h3>
+    ${rankingProduto.length===0 ? '<div class="hint">Nenhum código de produto informado nos registros deste período.</div>' : rankingProduto.map(([cod,qtd])=>`
+      <div class="dash-row">
+        <div class="rank-label mono">${cod}</div>
+        <div class="dash-bar-track"><div class="dash-bar-fill" style="width:${(qtd/maxProduto)*100}%;background:var(--warn);"></div></div>
+        <div class="rank-value">${qtd}</div>
+      </div>`).join('')}
+  `;
 }
 
 document.getElementById('btn-exportar-word').addEventListener('click', ()=>{
