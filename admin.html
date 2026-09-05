@@ -420,7 +420,7 @@
     <form id="form-novo-admin">
       <div class="field">
         <label>Novo usuário *</label>
-        <input type="text" id="novo-admin-usuario" required placeholder="ex: joao">
+        <input type="text" id="novo-admin-usuario" required placeholder="ex: joao ou Luis Henrique">
       </div>
       <div class="field">
         <label>Senha inicial *</label>
@@ -1142,14 +1142,20 @@ document.getElementById('btn-exportar-word').addEventListener('click', ()=>{
   if(fTipoVal) filtrosTexto.push(`Tipo: ${fTipoVal}`);
   if(fDataVal) filtrosTexto.push(`Data: ${fDataVal}`);
 
-  // Monta as partes de imagem (uma parte MIME por foto, referenciada via cid:)
+  // Monta as partes de imagem (uma parte MIME por foto, referenciada via cid:), como miniatura fixa dentro da própria linha
   const boundary = '----=_NextPart_ContagemPicking_' + Date.now();
   let imagePartsMime = '';
-  let linhas = '';
 
-  filtrados.forEach((r, idx)=>{
+  const linhas = filtrados.map((r, idx)=>{
     const nomeColab = r.colaboradorNome || colaboradorNome(r.colaboradorId) || 'Colaborador removido';
-    linhas += `
+    let celulaFoto = '—';
+    if(r.foto){
+      const cid = `foto${idx}`;
+      const base64Data = r.foto.split(',')[1] || '';
+      celulaFoto = `<img src="cid:${cid}" width="70" height="70" style="width:70px;height:70px;object-fit:cover;border:1px solid #ccc;">`;
+      imagePartsMime += `\r\n--${boundary}\r\nContent-Type: image/jpeg\r\nContent-Transfer-Encoding: base64\r\nContent-ID: <${cid}>\r\n\r\n${base64Data}\r\n`;
+    }
+    return `
       <tr>
         <td>${formatTimestamp(r.timestamp)}</td>
         <td>${nomeColab}</td>
@@ -1159,20 +1165,9 @@ document.getElementById('btn-exportar-word').addEventListener('click', ()=>{
         <td>${r.quantidade != null ? (r.quantidade > 0 ? '+' : '') + r.quantidade : '—'}</td>
         <td>${r.observacao || '—'}</td>
         <td>${r.codigoProduto || '—'}</td>
+        <td style="text-align:center;">${celulaFoto}</td>
       </tr>`;
-    if(r.foto){
-      const cid = `foto${idx}`;
-      const base64Data = r.foto.split(',')[1] || '';
-      linhas += `
-      <tr>
-        <td colspan="8" style="text-align:center;padding:10px;">
-          <img src="cid:${cid}" style="max-width:380px;"><br>
-          <span style="font-size:8pt;color:#666;">Foto — ${r.enderecoCodigo || ''} (${r.tipo})</span>
-        </td>
-      </tr>`;
-      imagePartsMime += `\r\n--${boundary}\r\nContent-Type: image/jpeg\r\nContent-Transfer-Encoding: base64\r\nContent-ID: <${cid}>\r\n\r\n${base64Data}\r\n`;
-    }
-  });
+  }).join('');
 
   const htmlBody = `
     <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
@@ -1184,7 +1179,7 @@ document.getElementById('btn-exportar-word').addEventListener('click', ()=>{
         h1{font-size:18pt;color:#1B2233;}
         p{color:#444;font-size:10pt;}
         table{border-collapse:collapse;width:100%;margin-top:12px;}
-        th,td{border:1px solid #999;padding:6px 8px;font-size:9.5pt;text-align:left;}
+        th,td{border:1px solid #999;padding:6px 8px;font-size:9.5pt;text-align:left;vertical-align:middle;}
         th{background:#E0303F;color:#fff;}
       </style>
     </head>
@@ -1195,7 +1190,7 @@ document.getElementById('btn-exportar-word').addEventListener('click', ()=>{
       <p>Total de registros: ${filtrados.length}</p>
       <table>
         <tr>
-          <th>Data/Hora</th><th>Colaborador</th><th>Rua</th><th>Endereço</th><th>Tipo</th><th>Qtd</th><th>Observação</th><th>Código Produto</th>
+          <th>Data/Hora</th><th>Colaborador</th><th>Rua</th><th>Endereço</th><th>Tipo</th><th>Qtd</th><th>Observação</th><th>Código Produto</th><th>Foto</th>
         </tr>
         ${linhas}
       </table>
@@ -1299,7 +1294,8 @@ document.getElementById('form-novo-admin').addEventListener('submit', async (e)=
     return;
   }
 
-  const emailInterno = `${usuario}.${Date.now()}@admin.contagempicking.internal`;
+  const usuarioSlug = usuario.replace(/[^a-z0-9.]/g, '') || 'usuario';
+  const emailInterno = `${usuarioSlug}.${Date.now()}@admin.contagempicking.internal`;
   try{
     const authSecundario = getAuthSecundario();
     const cred = await createUserWithEmailAndPassword(authSecundario, emailInterno, senha);
