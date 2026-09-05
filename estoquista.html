@@ -316,43 +316,58 @@ document.getElementById('btn-confirmar-matricula').addEventListener('click', asy
 async function carregarMinhaContagem(){
   document.getElementById('minha-contagem-nome').textContent = 'Olá, ' + colaborador.nome.split(' ')[0] + '!';
 
+  if(colaborador.universal === true){
+    document.getElementById('sem-atribuicao').style.display = 'none';
+    const sid = sessionId(colaborador.id, 'GERAL', todayStr());
+    const totalRegistros = (await getDocs(query(collection(db,'registros'), where('sessaoId','==', sid)))).size;
+    const sessaoDoc = await getDoc(doc(db,'sessoes', sid));
+    const concluida = sessaoDoc.exists() && sessaoDoc.data().status === 'concluida';
+    const ruaGeral = { ruaId: null, ruaCodigo: 'Geral', grupoId: null };
+
+    const list = document.getElementById('ruas-list');
+    list.innerHTML = '';
+    const card = document.createElement('div');
+    card.className = 'rua-card';
+    card.innerHTML = `
+      <div class="rua-top">
+        <div><div class="rua-codigo">Contagem geral</div><div class="rua-grupo">Digite qualquer endereço</div></div>
+        <span class="status-chip ${concluida ? '' : 'pendente'}">${concluida ? 'Finalizada' : (totalRegistros>0 ? 'Em andamento' : 'Não iniciada')}</span>
+      </div>
+      <div class="progress-label">${totalRegistros} endereço(s) registrado(s) hoje</div>
+      <button class="btn ${concluida ? 'btn-secondary' : 'btn-primary'}">
+        ${concluida ? 'Revisar / corrigir' : (totalRegistros>0 ? 'CONTINUAR CONTAGEM' : 'INICIAR CONTAGEM')}
+      </button>
+    `;
+    card.querySelector('button').addEventListener('click', ()=> iniciarContagem(ruaGeral, sid));
+    list.appendChild(card);
+    showScreen('screen-minha-contagem');
+    return;
+  }
+
   const ruasSnap = await getDocs(collection(db,'ruas'));
   const gruposSnap = await getDocs(collection(db,'grupos'));
   const ruasMap = Object.fromEntries(ruasSnap.docs.map(d=>[d.id, d.data()]));
   const gruposMap = Object.fromEntries(gruposSnap.docs.map(d=>[d.id, d.data()]));
 
-  if(colaborador.universal === true){
-    ruasAtribuidas = Object.entries(ruasMap)
-      .filter(([id, r]) => r.ativo !== false)
-      .map(([id, r]) => ({
-        ruaId: id,
-        ruaCodigo: r.codigo,
-        grupoId: r.grupoId,
-        grupoNome: gruposMap[r.grupoId] ? gruposMap[r.grupoId].nome : '—'
-      }))
-      .sort(compararRuas);
-    document.getElementById('sem-atribuicao').style.display = 'none';
-  } else {
-    const qAtrib = query(collection(db,'atribuicoes'), where('colaboradorId','==', colaborador.id), where('ativo','==', true));
-    const snapAtrib = await getDocs(qAtrib);
-    if(snapAtrib.empty){
-      document.getElementById('sem-atribuicao').style.display = 'block';
-      document.getElementById('ruas-list').innerHTML = '';
-      showScreen('screen-minha-contagem');
-      return;
-    }
-    document.getElementById('sem-atribuicao').style.display = 'none';
-    ruasAtribuidas = snapAtrib.docs
-      .map(d=>d.data())
-      .filter(a => ruasMap[a.ruaId] && ruasMap[a.ruaId].ativo !== false)
-      .map(a => ({
-        ruaId: a.ruaId,
-        ruaCodigo: ruasMap[a.ruaId].codigo,
-        grupoId: a.grupoId,
-        grupoNome: gruposMap[a.grupoId] ? gruposMap[a.grupoId].nome : '—'
-      }))
-      .sort(compararRuas);
+  const qAtrib = query(collection(db,'atribuicoes'), where('colaboradorId','==', colaborador.id), where('ativo','==', true));
+  const snapAtrib = await getDocs(qAtrib);
+  if(snapAtrib.empty){
+    document.getElementById('sem-atribuicao').style.display = 'block';
+    document.getElementById('ruas-list').innerHTML = '';
+    showScreen('screen-minha-contagem');
+    return;
   }
+  document.getElementById('sem-atribuicao').style.display = 'none';
+  ruasAtribuidas = snapAtrib.docs
+    .map(d=>d.data())
+    .filter(a => ruasMap[a.ruaId] && ruasMap[a.ruaId].ativo !== false)
+    .map(a => ({
+      ruaId: a.ruaId,
+      ruaCodigo: ruasMap[a.ruaId].codigo,
+      grupoId: a.grupoId,
+      grupoNome: gruposMap[a.grupoId] ? gruposMap[a.grupoId].nome : '—'
+    }))
+    .sort(compararRuas);
 
   const list = document.getElementById('ruas-list');
   list.innerHTML = '';
@@ -381,7 +396,7 @@ async function carregarMinhaContagem(){
 }
 
 function sessionId(colaboradorId, ruaId, dataStr){
-  return `${colaboradorId}__${ruaId}__${dataStr}`;
+  return `${colaboradorId}__${ruaId || 'GERAL'}__${dataStr}`;
 }
 
 // Ruas principais (3A, 4F) aparecem primeiro; dentro de cada grupo, ordem numérica crescente

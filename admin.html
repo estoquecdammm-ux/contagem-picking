@@ -898,7 +898,7 @@ let atribuicoes = [];
 let registros = [];
 
 function grupoNome(id){ const g = grupos.find(x=>x.id===id); return g ? g.nome : '—'; }
-function ruaCodigo(id){ const r = ruas.find(x=>x.id===id); return r ? r.codigo : '—'; }
+function ruaCodigo(id){ if(!id) return 'Geral'; const r = ruas.find(x=>x.id===id); return r ? r.codigo : '—'; }
 function colaboradorNome(id){ const c = colaboradores.find(x=>x.id===id); return c ? c.nome : null; }
 
 function badge(ativo){
