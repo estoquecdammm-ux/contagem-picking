@@ -235,7 +235,8 @@
           <option value="AVARIA SEM TRATATIVA">Avaria sem tratativa</option>
           <option value="OUTROS">Outros</option>
         </select>
-        <input type="date" id="filtro-data" style="max-width:160px;">
+        <input type="date" id="filtro-data-inicial" title="Data inicial" style="max-width:170px;">
+        <input type="date" id="filtro-data-final" title="Data final" style="max-width:170px;">
         <button class="btn btn-new" id="btn-exportar-word" style="width:auto;">📄 Exportar para Word</button>
       </div>
       <table>
@@ -1078,7 +1079,7 @@ function renderAtribuicoes(){
 }
 
 // ================= MOVIMENTAÇÕES =================
-['filtro-colaborador','filtro-rua','filtro-tipo','filtro-data'].forEach(id=>{
+['filtro-colaborador','filtro-rua','filtro-tipo','filtro-data-inicial','filtro-data-final'].forEach(id=>{
   document.getElementById(id).addEventListener('change', renderMovimentacoes);
 });
 
@@ -1092,13 +1093,15 @@ function getFiltrados(){
   const fColab = document.getElementById('filtro-colaborador').value;
   const fRua = document.getElementById('filtro-rua').value;
   const fTipo = document.getElementById('filtro-tipo').value;
-  const fData = document.getElementById('filtro-data').value;
+  const fDataInicial = document.getElementById('filtro-data-inicial').value;
+  const fDataFinal = document.getElementById('filtro-data-final').value;
 
   return registros.filter(r=>{
     if(fColab && r.colaboradorId !== fColab) return false;
     if(fRua && r.ruaId !== fRua) return false;
     if(fTipo && r.tipo !== fTipo) return false;
-    if(fData && r.data !== fData) return false;
+    if(fDataInicial && r.data < fDataInicial) return false;
+    if(fDataFinal && r.data > fDataFinal) return false;
     return true;
   });
 }
@@ -1136,11 +1139,16 @@ document.getElementById('btn-exportar-word').addEventListener('click', ()=>{
   const fColabVal = document.getElementById('filtro-colaborador').selectedOptions[0]?.text;
   const fRuaVal = document.getElementById('filtro-rua').selectedOptions[0]?.text;
   const fTipoVal = document.getElementById('filtro-tipo').value;
-  const fDataVal = document.getElementById('filtro-data').value;
+  const fDataInicialVal = document.getElementById('filtro-data-inicial').value;
+  const fDataFinalVal = document.getElementById('filtro-data-final').value;
   if(document.getElementById('filtro-colaborador').value) filtrosTexto.push(`Colaborador: ${fColabVal}`);
   if(document.getElementById('filtro-rua').value) filtrosTexto.push(`Rua: ${fRuaVal}`);
   if(fTipoVal) filtrosTexto.push(`Tipo: ${fTipoVal}`);
-  if(fDataVal) filtrosTexto.push(`Data: ${fDataVal}`);
+  if(fDataInicialVal || fDataFinalVal){
+    if(fDataInicialVal && fDataFinalVal) filtrosTexto.push(`Período: ${fDataInicialVal} a ${fDataFinalVal}`);
+    else if(fDataInicialVal) filtrosTexto.push(`A partir de: ${fDataInicialVal}`);
+    else filtrosTexto.push(`Até: ${fDataFinalVal}`);
+  }
 
   // Monta as partes de imagem (uma parte MIME por foto, referenciada via cid:), como miniatura fixa dentro da própria linha
   const boundary = '----=_NextPart_ContagemPicking_' + Date.now();
