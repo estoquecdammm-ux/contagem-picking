@@ -516,8 +516,14 @@ async function garantirRegistroAdmin(){
     const configAntigo = await getDoc(doc(db,'config','login'));
     const usuarioMigrado = configAntigo.exists() ? configAntigo.data().usuario : 'admin';
     await addDoc(collection(db,'adminUsuarios'), {
-      uid: auth.currentUser.uid, usuario: usuarioMigrado, email: auth.currentUser.email, ativo: true, criadoEm: new Date().toISOString()
+      uid: auth.currentUser.uid, usuario: usuarioMigrado, email: auth.currentUser.email, ativo: true,
+      criadoEm: new Date().toISOString(), oculto: usuarioMigrado === 'admin'
     });
+  } else {
+    const meuDoc = snap.docs[0];
+    if(meuDoc.data().usuario === 'admin' && meuDoc.data().oculto !== true){
+      await updateDoc(doc(db,'adminUsuarios', meuDoc.id), { oculto: true });
+    }
   }
 }
 
@@ -1274,7 +1280,7 @@ document.getElementById('btn-administradores').addEventListener('click', async (
 
 async function renderListaAdministradores(){
   const snap = await getDocs(collection(db,'adminUsuarios'));
-  const admins = snap.docs.map(d=>({id:d.id, ...d.data()}));
+  const admins = snap.docs.map(d=>({id:d.id, ...d.data()})).filter(a => a.oculto !== true || a.uid === auth.currentUser.uid);
   const list = document.getElementById('lista-administradores');
   if(admins.length === 0){
     list.innerHTML = '<div class="hint">Nenhum administrador cadastrado ainda.</div>';
