@@ -429,7 +429,7 @@ async function carregarHistorico(){
     const ruasMap = Object.fromEntries(ruasSnap.docs.map(d=>[d.id, d.data()]));
     const sessoes = snap.docs.map(d=>({id:d.id, ...d.data()})).sort((a,b)=> (b.data||'').localeCompare(a.data||''));
     list.innerHTML = sessoes.map(s=>{
-      const codigoRua = ruasMap[s.ruaId] ? ruasMap[s.ruaId].codigo : 'Rua removida';
+      const codigoRua = !s.ruaId ? 'Geral' : (ruasMap[s.ruaId] ? ruasMap[s.ruaId].codigo : 'Rua removida');
       return `<div class="review-item"><span class="code">${codigoRua} — ${s.data}</span><span class="tipo">${s.status === 'concluida' ? 'Finalizada' : 'Em andamento'}</span></div>`;
     }).join('');
   }
