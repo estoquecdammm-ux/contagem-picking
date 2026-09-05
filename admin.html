@@ -520,15 +520,27 @@
 <div class="modal-overlay" id="modal-zona-perigo">
   <div class="modal">
     <h2 style="color:var(--danger);">⚠️ Zona de perigo <button class="modal-close" data-close>&times;</button></h2>
-    <p class="hint" style="margin-bottom:14px;">Isso apaga <strong>permanentemente</strong> todos os Colaboradores, Grupos, Ruas, Endereços, Atribuições, Sessões e Movimentações do sistema. Use só pra limpar dados de teste antes de começar de verdade. As contas de Administradores NÃO são apagadas.</p>
+    <p class="hint" style="margin-bottom:14px;">Selecione o que deseja apagar <strong>permanentemente</strong>. As contas de Administradores nunca são afetadas por essa tela.</p>
+
+    <div class="checkbox-list" style="margin-bottom:16px;">
+      <label class="checkbox-row"><input type="checkbox" class="apagar-check" value="colaboradores"> Colaboradores</label>
+      <label class="checkbox-row"><input type="checkbox" class="apagar-check" value="grupos"> Grupos</label>
+      <label class="checkbox-row"><input type="checkbox" class="apagar-check" value="ruas"> Ruas</label>
+      <label class="checkbox-row"><input type="checkbox" class="apagar-check" value="enderecos"> Endereços</label>
+      <label class="checkbox-row"><input type="checkbox" class="apagar-check" value="atribuicoes"> Atribuições</label>
+      <label class="checkbox-row"><input type="checkbox" class="apagar-check" value="sessoes"> Sessões</label>
+      <label class="checkbox-row"><input type="checkbox" class="apagar-check" value="registros"> Movimentações (registros)</label>
+    </div>
+    <button type="button" class="btn btn-secondary" id="btn-marcar-tudo" style="margin-bottom:16px;">Marcar tudo</button>
+
     <div class="field">
-      <label>Digite <strong>APAGAR TUDO</strong> para confirmar</label>
-      <input type="text" id="confirmacao-apagar-tudo" placeholder="APAGAR TUDO">
+      <label>Digite <strong>APAGAR</strong> para confirmar</label>
+      <input type="text" id="confirmacao-apagar-tudo" placeholder="APAGAR">
     </div>
     <div class="login-error" id="apagar-tudo-status" style="min-height:16px;"></div>
     <div class="modal-actions">
       <button type="button" class="btn btn-secondary" data-close>Cancelar</button>
-      <button type="button" class="btn" style="width:auto;background:var(--danger);color:#fff;" id="btn-confirmar-apagar-tudo">Apagar tudo definitivamente</button>
+      <button type="button" class="btn" style="width:auto;background:var(--danger);color:#fff;" id="btn-confirmar-apagar-tudo">Apagar selecionado(s)</button>
     </div>
   </div>
 </div>
@@ -1501,27 +1513,37 @@ function abrirDetalheMov(id){
 }
 
 document.getElementById('btn-zona-perigo').addEventListener('click', ()=>{
+  document.querySelectorAll('.apagar-check').forEach(c => c.checked = false);
   document.getElementById('confirmacao-apagar-tudo').value = '';
   document.getElementById('apagar-tudo-status').textContent = '';
   document.getElementById('modal-zona-perigo').classList.add('visible');
 });
 
+document.getElementById('btn-marcar-tudo').addEventListener('click', ()=>{
+  document.querySelectorAll('.apagar-check').forEach(c => c.checked = true);
+});
+
 document.getElementById('btn-confirmar-apagar-tudo').addEventListener('click', async ()=>{
   const statusEl = document.getElementById('apagar-tudo-status');
-  if(document.getElementById('confirmacao-apagar-tudo').value.trim() !== 'APAGAR TUDO'){
-    statusEl.textContent = 'Digite exatamente "APAGAR TUDO" para confirmar.';
+  const selecionados = Array.from(document.querySelectorAll('.apagar-check:checked')).map(c => c.value);
+
+  if(selecionados.length === 0){
+    statusEl.textContent = 'Selecione ao menos um tipo de dado pra apagar.';
+    return;
+  }
+  if(document.getElementById('confirmacao-apagar-tudo').value.trim() !== 'APAGAR'){
+    statusEl.textContent = 'Digite exatamente "APAGAR" para confirmar.';
     return;
   }
   statusEl.textContent = 'Apagando... não feche esta janela.';
-  const colecoes = ['colaboradores','grupos','ruas','enderecos','atribuicoes','sessoes','registros'];
   try{
-    for(const nome of colecoes){
+    for(const nome of selecionados){
       const snap = await getDocs(collection(db, nome));
       for(const d of snap.docs){
         await deleteDoc(doc(db, nome, d.id));
       }
     }
-    toast('Todos os dados de teste foram apagados.');
+    toast(`Dados apagados: ${selecionados.join(', ')}.`);
     document.getElementById('modal-zona-perigo').classList.remove('visible');
   }catch(err){
     statusEl.textContent = 'Erro ao apagar: ' + err.message;
